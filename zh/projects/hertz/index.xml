@@ -1,4 +1,37 @@
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>CloudWeGo – Hertz</title><link>https://www.cloudwego.io/zh/projects/hertz/</link><description>Recent content in Hertz on CloudWeGo</description><generator>Hugo -- gohugo.io</generator><language>zh</language><lastBuildDate>Thu, 30 May 2024 00:00:00 +0000</lastBuildDate><atom:link href="https://www.cloudwego.io/zh/projects/hertz/index.xml" rel="self" type="application/rss+xml"/><item><title>Blog: Hertz Release</title><link>https://www.cloudwego.io/zh/blog/releases/hertz/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://www.cloudwego.io/zh/blog/releases/hertz/</guid><description/></item><item><title>Blog: Hertz v0.9.0 版本发布</title><link>https://www.cloudwego.io/zh/blog/2024/05/30/hertz-v0.9.0-%E7%89%88%E6%9C%AC%E5%8F%91%E5%B8%83/</link><pubDate>Thu, 30 May 2024 00:00:00 +0000</pubDate><guid>https://www.cloudwego.io/zh/blog/2024/05/30/hertz-v0.9.0-%E7%89%88%E6%9C%AC%E5%8F%91%E5%B8%83/</guid><description>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>CloudWeGo – Hertz</title><link>https://www.cloudwego.io/zh/projects/hertz/</link><description>Recent content in Hertz on CloudWeGo</description><generator>Hugo -- gohugo.io</generator><language>zh</language><lastBuildDate>Wed, 21 May 2025 00:00:00 +0000</lastBuildDate><atom:link href="https://www.cloudwego.io/zh/projects/hertz/index.xml" rel="self" type="application/rss+xml"/><item><title>Blog: Hertz Release</title><link>https://www.cloudwego.io/zh/blog/releases/hertz/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://www.cloudwego.io/zh/blog/releases/hertz/</guid><description/></item><item><title>Blog: Hertz Release v0.10.0</title><link>https://www.cloudwego.io/zh/blog/2025/05/21/hertz-release-v0.10.0/</link><pubDate>Wed, 21 May 2025 00:00:00 +0000</pubDate><guid>https://www.cloudwego.io/zh/blog/2025/05/21/hertz-release-v0.10.0/</guid><description>
+&lt;p>Hertz v0.10.0 版本新增两项功能并修复了一些问题。&lt;/p>
+&lt;ol>
+&lt;li>集成 SSE 功能。使用方法请参阅 &lt;a href="https://www.cloudwego.io/zh/docs/hertz/tutorials/basic-feature/sse/">SSE&lt;/a>。&lt;/li>
+&lt;li>添加 http.Handler 适配器，使用官方 net/http 生态系统扩展 Hertz。使用方法请参阅 &lt;a href="https://www.cloudwego.io/zh/docs/hertz/tutorials/basic-feature/http-adaptor/">Adaptor&lt;/a>。&lt;/li>
+&lt;/ol>
+&lt;h2 id="feature">Feature&lt;/h2>
+&lt;ol>
+&lt;li>[&lt;a href="https://github.com/cloudwego/hertz/pull/1327">#1327&lt;/a>] feat(adaptor): 为 http.Handler 添加新的 HertzHandler&lt;/li>
+&lt;li>[&lt;a href="https://github.com/cloudwego/hertz/pull/1349">#1349&lt;/a>] feat(sse): SetLastEventID&lt;/li>
+&lt;li>[&lt;a href="https://github.com/cloudwego/hertz/pull/1343">#1343&lt;/a>] feat(sse): reader 支持取消流&lt;/li>
+&lt;li>[&lt;a href="https://github.com/cloudwego/hertz/pull/1341">#1341&lt;/a>] feat(server): 检测请求 race&lt;/li>
+&lt;li>[&lt;a href="https://github.com/cloudwego/hertz/pull/1339">#1339&lt;/a>] feat(sse): 添加 LastEventID helper&lt;/li>
+&lt;li>[&lt;a href="https://github.com/cloudwego/hertz/pull/1335">#1335&lt;/a>] feat(protocol): 新的 sse 包&lt;/li>
+&lt;li>[&lt;a href="https://github.com/cloudwego/hertz/pull/1322">#1322&lt;/a>] feat: server 使用标准 go net 传输时感知客户端连接关闭&lt;/li>
+&lt;/ol>
+&lt;h2 id="fix">Fix&lt;/h2>
+&lt;ol>
+&lt;li>[&lt;a href="https://github.com/cloudwego/hertz/pull/1340">#1340&lt;/a>] fix:仅在 amd64/arm64 linux/darwin 上使用 netpoll 和 sonic&lt;/li>
+&lt;li>[&lt;a href="https://github.com/cloudwego/hertz/pull/1333">#1333&lt;/a>] fix(protocol): 非预期的设置 resp.bodyStream&lt;/li>
+&lt;li>[&lt;a href="https://github.com/cloudwego/hertz/pull/1329">#1329&lt;/a>] fix(client): sse 场景下自动切换为 stream body 模式&lt;/li>
+&lt;li>[&lt;a href="https://github.com/cloudwego/hertz/pull/1332">#1332&lt;/a>] fix(server): server 关闭时检查 ExitWaitTimeout&lt;/li>
+&lt;li>[&lt;a href="https://github.com/cloudwego/hertz/pull/1316">#1316&lt;/a>] fix: 优先使用自定义 validator&lt;/li>
+&lt;/ol>
+&lt;h2 id="tests">Tests&lt;/h2>
+&lt;ol>
+&lt;li>[&lt;a href="https://github.com/cloudwego/hertz/pull/1336">#1336&lt;/a>] test(protocol): 修复硬编码的监听地址&lt;/li>
+&lt;/ol>
+&lt;h2 id="chore">Chore&lt;/h2>
+&lt;ol>
+&lt;li>[&lt;a href="https://github.com/cloudwego/hertz/pull/1353">#1353&lt;/a>] chore：更新 netpoll 依赖&lt;/li>
+&lt;li>[&lt;a href="https://github.com/cloudwego/hertz/pull/1337">#1337&lt;/a>] chore(hz): 更新 hz 工具 v0.9.7&lt;/li>
+&lt;li>[&lt;a href="https://github.com/cloudwego/hertz/pull/1328">#1328&lt;/a>] ci: 禁用 codecov 注释&lt;/li>
+&lt;/ol></description></item><item><title>Blog: Hertz v0.9.0 版本发布</title><link>https://www.cloudwego.io/zh/blog/2024/05/30/hertz-v0.9.0-%E7%89%88%E6%9C%AC%E5%8F%91%E5%B8%83/</link><pubDate>Thu, 30 May 2024 00:00:00 +0000</pubDate><guid>https://www.cloudwego.io/zh/blog/2024/05/30/hertz-v0.9.0-%E7%89%88%E6%9C%AC%E5%8F%91%E5%B8%83/</guid><description>
 &lt;p>Hertz v0.9.0 版本中主要支持常规迭代与优化。&lt;/p>
 &lt;h2 id="feature">Feature&lt;/h2>
 &lt;ol>
@@ -841,7 +874,7 @@ HTTP 的 header 是标识符协议，在没有找到特定的标识符之前，�
 同时，为了减少系统调用次数，提升整体解析效率，涉及 IO 操作时，我们通常引入带 buffer 的 IO 数据结构。如下图所示，它的核心点是最下层的 buffer，buffer 是一个类似于一块完整的内存空间，我们可以将 IO 读到的数据放进这个空间做暂存。&lt;/p>
 &lt;p>&lt;img src="https://www.cloudwego.io/img/blog/1st_HTTP_Hertz/12.png" alt="image">&lt;/p>
 &lt;h4 id="bufioreader-的问题">bufio.Reader 的问题&lt;/h4>
-&lt;p>这样做出现的问题是，原生的 bufio.Reader 长度是固定的，请求的 Header 大小超出 buffer 长度后，&lt;code>.Peek()&lt;/code> 方法直接报错 &lt;code>(ErrBufferFul)&lt;/code>，无法完成既定语义功能。&lt;/p>
+&lt;p>这样做出现的问题是，原生的 bufio.Reader 长度是固定的，请求的 Header 大小超出 buffer 长度后，&lt;code>.Peek()&lt;/code> 方法直接报错 &lt;code>(ErrBufferFull)&lt;/code>，无法完成既定语义功能。&lt;/p>
 &lt;h4 id="一些可能的解">一些可能的解&lt;/h4>
 &lt;p>对于上述问题，其实有一些可能的解决方法：&lt;/p>
 &lt;ul>
