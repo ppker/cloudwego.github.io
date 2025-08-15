@@ -110,7 +110,7 @@
 &lt;li>
 &lt;p>&lt;strong>TTHeader Streaming: Support interface-level Recv timeout control&lt;/strong>&lt;/p>
 &lt;p>In addition to the existing Client level, this release of TTHeader Streaming supports interface-level Recv timeout configuration, making configuration more flexible.&lt;/p>
-&lt;p>User documentation: &lt;a href="https://www.cloudwego.io/docs/kitex/tutorials/basic-feature/streamx/kitex&amp;#43;streamx&amp;#43;-&amp;#43;stream&amp;#43;timeout&amp;#43;control/">StreamX Timeout Control&lt;/a>&lt;/p>
+&lt;p>User documentation: &lt;a href="https://www.cloudwego.io/docs/kitex/tutorials/basic-feature/streamx/streamx_timeout_control/">StreamX Timeout Control&lt;/a>&lt;/p>
 &lt;/li>
 &lt;li>
 &lt;p>&lt;strong>Default Thrift transport protocol changed from Buffered to Framed&lt;/strong>&lt;/p>

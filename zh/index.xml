@@ -142,7 +142,7 @@
 &lt;li>
 &lt;p>&lt;strong>TTHeader Streaming 支持配置接口级别 Recv 超时&lt;/strong>&lt;/p>
 &lt;p>本版本 TTHeader Streaming 在原有的 Kitex Client 级别基础上，额外支持接口级别的 Recv 超时配置，配置更为灵活。&lt;/p>
-&lt;p>详见 &lt;a href="https://www.cloudwego.io/zh/docs/kitex/tutorials/basic-feature/streamx/stream&amp;#43;timeout&amp;#43;control/">StreamX 流超时控制&lt;/a>。&lt;/p>
+&lt;p>详见 &lt;a href="https://www.cloudwego.io/zh/docs/kitex/tutorials/basic-feature/streamx/streamx_timeout_control/">StreamX 流超时控制&lt;/a>。&lt;/p>
 &lt;/li>
 &lt;li>
 &lt;p>&lt;strong>Thrift 默认传输协议由 Buffered 改为 Framed&lt;/strong>&lt;/p>
