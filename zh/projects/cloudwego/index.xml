@@ -6,7 +6,7 @@
 &lt;h2 id="背景">背景&lt;/h2>
 &lt;p>CloudWeGo 是一套由字节跳动基础架构服务框架团队开源的、可快速构建企业级云原生微服务架构的中间件集合。
 CloudWeGo 下的项目主要有三个特点：&lt;strong>高性能&lt;/strong>、&lt;strong>高扩展性&lt;/strong>以及&lt;strong>高可靠性&lt;/strong>；并且，在开源后我们也更加重视易用性的建设，我们意识到易用性可以给社区带来很多用户、进而形成活跃的社区氛围，推动社区持续发展，而且易用性可帮助用户快速完成业务逻辑开发，提升效率。&lt;/p>
-&lt;p>针对易用性，我们在研发体验、用户体验以及社区宣传等均做了诸多工作，下面我来一一介绍。另外这次分享主要会重点介绍 &lt;a href="https://github.com/cloudwego/hertz">Hertz&lt;/a> 以及围绕 &lt;a href="https://github.com/cloudwego/cwgo">cwgo&lt;/a> 的易用性建设。&lt;/p>
+&lt;p>针对易用性，我们在研发体验、用户体验以及社区宣传等均做了诸多工作，下面我来一一介绍。另外这次分享主要会重点介绍 &lt;a href="https://github.com/cloudwego/hertz">Hertz&lt;/a> 的易用性建设。&lt;/p>
 &lt;h2 id="易用性-feature-建设">易用性 Feature 建设&lt;/h2>
 &lt;p>&lt;a href="https://github.com/cloudwego/hertz">Hertz&lt;/a> 作为企业级的 HTTP 框架，易用性一直是我们非常重视的方面，因为它能够极大提升研发体验。因此，自从开源以来，我们一直非常重视用户提出的各种关于易用性的建议，并进行了总结：第一个问题是我们在一些 Feature 的使用上与常见的框架有些差别，导致迁移过来的用户可能会不习惯；
 第二个问题是框架的脚手架工具较多，例如 CloudWeGo 下就有 hz 和 kitex 两个脚手架，这无疑增加了用户的学习成本；第三个问题是文档的问题，我们在 issue 和用户群的用户反馈中看出，目前我们的文档存在描述不清晰，内容缺失等问题，导致用户遇到问题，往往无法快速解决。&lt;/p>
@@ -46,24 +46,6 @@ CloudWeGo 下的项目主要有三个特点：&lt;strong>高性能&lt;/strong>�
 但是作为一个通信框架，我们也需要完成 client 端的生成工作，也就是图中的 1、2、6 过程，因此 hz 在开源后支持了生成 client 代码的能力。&lt;/p>
 &lt;p>&lt;img src="https://www.cloudwego.io/img/blog/CloudWeGo_Usability_Construction/hz.png" alt="image">&lt;/p>
 &lt;p>Client 端生成的目的主要是可以屏蔽掉初始化 Hertz client 、发送请求等一系列固定的操作、为用户提供一个类似 HTTP 请求一键发送的能力，并能够和 hz 生成的 server 直接进行通信。&lt;/p>
-&lt;h3 id="cwgo">CWGO&lt;/h3>
-&lt;p>下面我来介绍另外一个工具 &lt;a href="https://github.com/cloudwego/cwgo">cwgo&lt;/a>。cwgo 是我们针对 CloudWeGo Golang 框架推出的一个统一的工具。&lt;/p>
-&lt;p>大家可以看下图，CloudWeGo 在 Golang 下存在多个代码生成工具，虽然我们的 Kitex 和 Hertz 均已经提供了一层封装，但是他们的使用还是略有不同，导致用户的学习成本偏高。 这个问题正是 cwgo 要解决的问题之一。&lt;/p>
-&lt;p>&lt;img src="https://www.cloudwego.io/img/blog/CloudWeGo_Usability_Construction/cwgo.png" alt="image">&lt;/p>
-&lt;p>此外，目前 CloudWeGo 社区的 Go 项目还面临如下问题：&lt;/p>
-&lt;ol>
-&lt;li>API 管理能力相对薄弱， IDL 本身能够作为接口描述/定义工具贯穿整个业务开发迭代过程，但实际 CloudWeGo 对外并没有一个明确的实践方案，目前和企业用户对接时基本上是要求业务方自行围绕 IDL 进行 API 相关的管理&lt;/li>
-&lt;li>各个组件相对独立，在共同使用的时候不能无缝的配合&lt;/li>
-&lt;li>缺少常用的单测、DB 等代码的生成及配置&lt;/li>
-&lt;/ol>
-&lt;p>随着未来 CloudWeGo 开源组件不断增多，零碎的用户体验也会不断地割裂，因此我们发布了 CloudWeGo all in one 工具 cwgo，旨在从一个全局的视角去解决以上问题。提供一个更简单、易用的微服务生成、管理形式。&lt;/p>
-&lt;p>下面来介绍 cwgo 的几个特性&lt;/p>
-&lt;ol>
-&lt;li>cwgo 集成了 hz/kitex 脚手架的能力，并将他们的命令进行抽象、简化，统一在 cwgo 工具上展示，并且会打通生成的结构体、注解、Validator 等功能，无论用户使用 RPC 还是 HTTP，都能为用户提供一个统一的生成代码体验&lt;/li>
-&lt;li>交互式命令行，这个能力注意是面向初阶用户，以交互式的形式为用户生成目标代码，极大减少学习成本，用户只需要点点点就可以完成微服务的生成。&lt;/li>
-&lt;li>我们会生成更加服务企业需求的 mvc 模版，如右图所示，协助业务的快速开发落地，并方便日后的迭代及维护；并且，cwgo 支持自定义模版、模版托管等能力，也更便于完成模板的管理以及快速替换。&lt;/li>
-&lt;li>我们在 cwgo 上提供了一个全新的 微服务部署形态，目前命名为 hex 计划，是 Hertz 和 Kitex 的缩写。Hex 计划的目标是在微服务可在同一个端口同时监听 HTTP/RPC 请求，基于协议嗅探实现零 overhead 的请求分发， 将请求分发给 Hertz 和 Kitex 进行处理。从而可以解决业务在 rpc 服务同时需要提供 HTTP API 接口时在研发效率、复杂度以及性能上的诸多妥协，目前该能力已经在 cwgo 正式发布，大家可按需体验。&lt;/li>
-&lt;/ol>
 &lt;h2 id="用户体验优化">用户体验优化&lt;/h2>
 &lt;h3 id="文档优化">文档优化&lt;/h3>
 &lt;p>自从开源来，CloudWeGo 下的项目一直都注重文档的问题，但是每次都是哪里有问题修哪里，无法全面解决问题&lt;/p>
@@ -86,23 +68,7 @@ CloudWeGo 下的项目主要有三个特点：&lt;strong>高性能&lt;/strong>�
 &lt;/ol>
 &lt;h3 id="csg-活动">CSG 活动&lt;/h3>
 &lt;p>我们还定期举办 CSG 活动，CSG 活动旨在帮助开发者了解框架的源码以及最佳用法。&lt;/p>
-&lt;p>截止目前，CSG 活动已经举办了 5 期，分别带大家了解了 Hertz/kitex/volo 框架的诸多源码和最佳实践，帮助开发者更好的了解和使用框架。大家可以在 &lt;a href="https://github.com/cloudwego/community">cloudwego/community&lt;/a> 仓库的 issue 查看往期活动的 issue 介绍与回放。&lt;/p>
-&lt;h2 id="展望">展望&lt;/h2>
-&lt;p>未来，我们还将继续对 CloudWeGo 的易用性进行持续性的投入和打磨，为用户提供更好的研发体验&lt;/p>
-&lt;ol>
-&lt;li>通用研发流程：为用户一套可直接使用的企业级研发流程，并协作各个框架，完成业务高效开发全流程
-&lt;ul>
-&lt;li>API 一站式管理：统一 CloudWeGo 项目的 API 管理方式，一站式完成描述、开发、测试全流程&lt;/li>
-&lt;li>分布式 IDL 管理：IDL&amp;amp; 产物与业务代码分开管理，降低维护成本&lt;/li>
-&lt;/ul>
-&lt;/li>
-&lt;li>CWGO x LLM：基于 LLM 提供更多智能的辅助能力
-&lt;ul>
-&lt;li>智能代码生成：在 IDL 中添加业务描述，在生成代码时结合 LLM 填充业务代码逻辑&lt;/li>
-&lt;li>文档自动化：文档自动撰写、优化、翻译、纠错等&lt;/li>
-&lt;/ul>
-&lt;/li>
-&lt;/ol></description></item><item><title>Blog: 开源社区的长期主义与新变化 — CloudWeGo 开源社区实践</title><link>https://www.cloudwego.io/zh/blog/2022/09/13/%E5%BC%80%E6%BA%90%E7%A4%BE%E5%8C%BA%E7%9A%84%E9%95%BF%E6%9C%9F%E4%B8%BB%E4%B9%89%E4%B8%8E%E6%96%B0%E5%8F%98%E5%8C%96-cloudwego-%E5%BC%80%E6%BA%90%E7%A4%BE%E5%8C%BA%E5%AE%9E%E8%B7%B5/</link><pubDate>Tue, 13 Sep 2022 00:00:00 +0000</pubDate><guid>https://www.cloudwego.io/zh/blog/2022/09/13/%E5%BC%80%E6%BA%90%E7%A4%BE%E5%8C%BA%E7%9A%84%E9%95%BF%E6%9C%9F%E4%B8%BB%E4%B9%89%E4%B8%8E%E6%96%B0%E5%8F%98%E5%8C%96-cloudwego-%E5%BC%80%E6%BA%90%E7%A4%BE%E5%8C%BA%E5%AE%9E%E8%B7%B5/</guid><description>
+&lt;p>截止目前，CSG 活动已经举办了 5 期，分别带大家了解了 Hertz/kitex/volo 框架的诸多源码和最佳实践，帮助开发者更好的了解和使用框架。大家可以在 &lt;a href="https://github.com/cloudwego/community">cloudwego/community&lt;/a> 仓库的 issue 查看往期活动的 issue 介绍与回放。&lt;/p></description></item><item><title>Blog: 开源社区的长期主义与新变化 — CloudWeGo 开源社区实践</title><link>https://www.cloudwego.io/zh/blog/2022/09/13/%E5%BC%80%E6%BA%90%E7%A4%BE%E5%8C%BA%E7%9A%84%E9%95%BF%E6%9C%9F%E4%B8%BB%E4%B9%89%E4%B8%8E%E6%96%B0%E5%8F%98%E5%8C%96-cloudwego-%E5%BC%80%E6%BA%90%E7%A4%BE%E5%8C%BA%E5%AE%9E%E8%B7%B5/</link><pubDate>Tue, 13 Sep 2022 00:00:00 +0000</pubDate><guid>https://www.cloudwego.io/zh/blog/2022/09/13/%E5%BC%80%E6%BA%90%E7%A4%BE%E5%8C%BA%E7%9A%84%E9%95%BF%E6%9C%9F%E4%B8%BB%E4%B9%89%E4%B8%8E%E6%96%B0%E5%8F%98%E5%8C%96-cloudwego-%E5%BC%80%E6%BA%90%E7%A4%BE%E5%8C%BA%E5%AE%9E%E8%B7%B5/</guid><description>
 &lt;h2 id="概述">概述&lt;/h2>
 &lt;p>CloudWeGo 开源一周年以来收获了超过 &lt;strong>1w&lt;/strong> 的 star 数，这一年 CloudWeGo 从项目的数量、性能的提升、社区的活跃、生态的拓展等各个方面都有一些整体的变化。
 同时，通过一周年的开源，我们收获了非常多的开源社区用户，这些用户在社区里也提供了很多项目的使用反馈。基于这些反馈，我们发现随着技术发展和用户业务的不停迭代，用户需求也在发生着变化。
