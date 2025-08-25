@@ -2218,290 +2218,7 @@ Found 10 outliers among 100 measurements (10.00%)
 &lt;li>[&lt;a href="https://github.com/cloudwego/kitex/pull/1008">#1008&lt;/a>] chore: update dynamicgo to v0.1.1&lt;/li>
 &lt;li>[&lt;a href="https://github.com/cloudwego/kitex/pull/1006">#1006&lt;/a>] chore: remove unnecessary replace for frugal&lt;/li>
 &lt;li>[&lt;a href="https://github.com/cloudwego/kitex/pull/1007">#1007&lt;/a>] chore: upgrade netpoll to v0.4.1&lt;/li>
-&lt;/ul></description></item><item><title>Blog: Hertz 支持 QUIC &amp; HTTP/3</title><link>https://www.cloudwego.io/zh/blog/2023/08/02/hertz-%E6%94%AF%E6%8C%81-quic-http/3/</link><pubDate>Wed, 02 Aug 2023 00:00:00 +0000</pubDate><guid>https://www.cloudwego.io/zh/blog/2023/08/02/hertz-%E6%94%AF%E6%8C%81-quic-http/3/</guid><description>
-&lt;h2 id="概述">概述&lt;/h2>
-&lt;p>根据 Hertz 的分层设计原则将 QUIC 和 HTTP3 的实现集成到框架中来，对外提供灵活的多协议支持，对内保持足够灵活的扩展性和清晰的架构。
-要从头实现一个完整的 QUIC 协议涉及到的工作量比较大且投入产出比相对较低，目前采取更合理的方式：首先定义标准网络传输层接口，之后将开源社区主流的一个或多个成熟的
-QUIC 协议实现经过简单的适配和封装通过模块化的方式接入到 Hertz 中来，同时也保留未来独立实现 QUIC 协议的空间。类似目前的网络传输层架构。HTTP/3
-同理。
-明确了实现路径之后，本文档讨论的主题也就基本上清晰了，主要为：&lt;/p>
-&lt;ol>
-&lt;li>网络传输层现状和 QUIC 设计层面统一：明确加入 QUIC 的网络传输层接口形态&lt;/li>
-&lt;li>协议层扩展 HTTP/3：在明确网络传输层形态之后，基于网络传输层接口实现 HTTP/3&lt;/li>
-&lt;/ol>
-&lt;p>&lt;img src="https://www.cloudwego.io/img/docs/hertz.png" alt="HERTZ">&lt;/p>
-&lt;h2 id="设计">设计&lt;/h2>
-&lt;h3 id="网络传输层">网络传输层&lt;/h3>
-&lt;h4 id="现状">现状&lt;/h4>
-&lt;p>当前的网络传输层设计主要还是基于 TCP 协议，基本语义为：当连接建立完成（包括 TLS）后为上层提供一个处理协议的回调函数：&lt;/p>
-&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-go" data-lang="go">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic">// Callback when data is ready on the connection&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#204a87;font-weight:bold">type&lt;/span> &lt;span style="color:#000">Serve&lt;/span> &lt;span style="color:#204a87;font-weight:bold">func&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">ctx&lt;/span> &lt;span style="color:#000">context&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#000">Context&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">conn&lt;/span> &lt;span style="color:#000">Conn&lt;/span>&lt;span style="color:#000;font-weight:bold">)&lt;/span> &lt;span style="color:#204a87;font-weight:bold">error&lt;/span>
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>当前网络传输层提供的标准网络库和 Netpoll 都是在这套接口下面展开的；因此协议层只需要依赖这个接口进行实现，而无需关心网络传输层具体正在提供的实现是什么。
-在 TCP 协议提供的框架和语义下面，这套接口是完全够用的，目前 Hertz 基于此接口构建的 HTTP/1.1、HTTP/2 足以证明这一点。&lt;/p>
-&lt;h5 id="详细描述">详细描述&lt;/h5>
-&lt;p>Conn 的定义为：&lt;/p>
-&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-go" data-lang="go">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#204a87;font-weight:bold">type&lt;/span> &lt;span style="color:#000">Conn&lt;/span> &lt;span style="color:#204a87;font-weight:bold">interface&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">net&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#000">Conn&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">Reader&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">Writer&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#8f5902;font-style:italic">// SetReadTimeout should work for every Read process&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">SetReadTimeout&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">t&lt;/span> &lt;span style="color:#000">time&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#000">Duration&lt;/span>&lt;span style="color:#000;font-weight:bold">)&lt;/span> &lt;span style="color:#204a87;font-weight:bold">error&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000;font-weight:bold">}&lt;/span>
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>主体由 Reader（提供从连接上读数据的能力）/Writer（提供往连接上写数据的能力）构成。
-同时也是当前 Hertz 网络传输层高性能库实现的承载，具体定义为：&lt;/p>
-&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-go" data-lang="go">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#204a87;font-weight:bold">type&lt;/span> &lt;span style="color:#000">Reader&lt;/span> &lt;span style="color:#204a87;font-weight:bold">interface&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#8f5902;font-style:italic">// Peek returns the next n bytes without advancing the reader.&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">Peek&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">n&lt;/span> &lt;span style="color:#204a87;font-weight:bold">int&lt;/span>&lt;span style="color:#000;font-weight:bold">)&lt;/span> &lt;span style="color:#000;font-weight:bold">([]&lt;/span>&lt;span style="color:#204a87;font-weight:bold">byte&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#204a87;font-weight:bold">error&lt;/span>&lt;span style="color:#000;font-weight:bold">)&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#8f5902;font-style:italic">// Skip discards the next n bytes.&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">Skip&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">n&lt;/span> &lt;span style="color:#204a87;font-weight:bold">int&lt;/span>&lt;span style="color:#000;font-weight:bold">)&lt;/span> &lt;span style="color:#204a87;font-weight:bold">error&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#8f5902;font-style:italic">// Release the memory space occupied by all read slices. This method needs to be executed actively to&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#8f5902;font-style:italic">// recycle the memory after confirming that the previously read data is no longer in use.&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#8f5902;font-style:italic">// After invoking Release, the slices obtained by the method such as Peek will&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#8f5902;font-style:italic">// become an invalid address and cannot be used anymore.&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">Release&lt;/span>&lt;span style="color:#000;font-weight:bold">()&lt;/span> &lt;span style="color:#204a87;font-weight:bold">error&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#8f5902;font-style:italic">// Len returns the total length of the readable data in the reader.&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">Len&lt;/span>&lt;span style="color:#000;font-weight:bold">()&lt;/span> &lt;span style="color:#204a87;font-weight:bold">int&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#8f5902;font-style:italic">// ReadByte is used to read one byte with advancing the read pointer.&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">ReadByte&lt;/span>&lt;span style="color:#000;font-weight:bold">()&lt;/span> &lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#204a87;font-weight:bold">byte&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#204a87;font-weight:bold">error&lt;/span>&lt;span style="color:#000;font-weight:bold">)&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#8f5902;font-style:italic">// ReadBinary is used to read next n byte with copy, and the read pointer will be advanced.&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">ReadBinary&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">n&lt;/span> &lt;span style="color:#204a87;font-weight:bold">int&lt;/span>&lt;span style="color:#000;font-weight:bold">)&lt;/span> &lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">p&lt;/span> &lt;span style="color:#000;font-weight:bold">[]&lt;/span>&lt;span style="color:#204a87;font-weight:bold">byte&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">err&lt;/span> &lt;span style="color:#204a87;font-weight:bold">error&lt;/span>&lt;span style="color:#000;font-weight:bold">)&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000;font-weight:bold">}&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#204a87;font-weight:bold">type&lt;/span> &lt;span style="color:#000">Writer&lt;/span> &lt;span style="color:#204a87;font-weight:bold">interface&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#8f5902;font-style:italic">// Malloc will provide a n bytes buffer to send data.&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">Malloc&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">n&lt;/span> &lt;span style="color:#204a87;font-weight:bold">int&lt;/span>&lt;span style="color:#000;font-weight:bold">)&lt;/span> &lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">buf&lt;/span> &lt;span style="color:#000;font-weight:bold">[]&lt;/span>&lt;span style="color:#204a87;font-weight:bold">byte&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">err&lt;/span> &lt;span style="color:#204a87;font-weight:bold">error&lt;/span>&lt;span style="color:#000;font-weight:bold">)&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#8f5902;font-style:italic">// WriteBinary will use the user buffer to flush.&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#8f5902;font-style:italic">// NOTE: Before flush successfully, the buffer b should be valid.&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">WriteBinary&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">b&lt;/span> &lt;span style="color:#000;font-weight:bold">[]&lt;/span>&lt;span style="color:#204a87;font-weight:bold">byte&lt;/span>&lt;span style="color:#000;font-weight:bold">)&lt;/span> &lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">n&lt;/span> &lt;span style="color:#204a87;font-weight:bold">int&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">err&lt;/span> &lt;span style="color:#204a87;font-weight:bold">error&lt;/span>&lt;span style="color:#000;font-weight:bold">)&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#8f5902;font-style:italic">// Flush will send data to the peer end.&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">Flush&lt;/span>&lt;span style="color:#000;font-weight:bold">()&lt;/span> &lt;span style="color:#204a87;font-weight:bold">error&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000;font-weight:bold">}&lt;/span>
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="引入-quic">引入 QUIC&lt;/h4>
-&lt;p>UDP + QUIC 大致可以对应到 TCP + TLS（严格的层级关系可以参考下图），按照当前的分层结构，同属于 Hertz 的网络传输层。不过 QUIC
-的编程模型天然基于流（Stream）来进行的，而当前基于 TCP 的网络传输层提供的 Reader /Writer 本质上是基于字节流的编程模型。虽然
-HTTP/2 非常类似地拥有流（Stream）的概念，但实际上是在 TCP 的字节流之上（应用协议层中）进行的封装，并非如 QUIC
-这样原生实现到了传输协议内部。我们无法要求 TCP 直接内置流（Stream）的实现（这可能也是 HTTP/2 的愿望），换句话说，要想把 HTTP/2
-和 HTTP/3 中流的概念在当下 Hertz 的某一层中统一起来，逻辑上其实是办不到的（虽然它们本质上是那么的相似）。&lt;/p>
-&lt;p>&lt;img src="https://www.cloudwego.io/img/docs/quic_http3.png" alt="quic &amp;amp; http3">&lt;/p>
-&lt;p>明确了上述问题之后，引入 QUIC 后的网络库形态其实也就比较清晰了：基于 TCP 的网络抽象接口仍然保持原样，新增一套基于
-QUIC（UDP）的网络传输层抽象，协议层对应提供一个基于 QUIC（UDP）网络抽象的处理接口。关键点在于，不强制将 QUIC（UDP）融合至当前基于
-TCP 的网络/协议层抽象当中来。&lt;/p>
-&lt;h5 id="接口设计">接口设计&lt;/h5>
-&lt;p>与当前 TCP 的抽象接口类似，QUIC 和 HTTP/3 的分界其实就是：&lt;/p>
-&lt;ol>
-&lt;li>网络传输层语义覆盖 QUIC 协议的连接准备、连接建立过程；请求对应的流完成准备之后就达到网络传输层的边界&lt;/li>
-&lt;li>协议层关注从 QUIC 连接上打开的流（Stream）开始，通过这个打开的流完成请求的解析，handler 的处理，到将相应通过这条流写回对端（Server 视角，Client 同理，对调即可）&lt;/li>
-&lt;/ol>
-&lt;p>网络传输层和协议层拆分的优势非常明显，目前的 Hertz 支持 ET/LT 触发方式、标准网络库和 Netpoll 相互补充，丰富应用场景等都是很好的例子。&lt;/p>
-&lt;h5 id="方案-a">方案 A&lt;/h5>
-&lt;p>基于上述分层思想，一个和网络传输层 Serve 相对应的 QUIC 抽象其实就出具雏形了，命名为 OnStream，语义和 Serve 基本一致*
-：当流完成准备。具体需要提供的实现就是上层协议（这里是 HTTP/3）。&lt;/p>
-&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-go" data-lang="go">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#204a87;font-weight:bold">type&lt;/span> &lt;span style="color:#000">ServeStream&lt;/span> &lt;span style="color:#204a87;font-weight:bold">func&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">ctx&lt;/span> &lt;span style="color:#000">context&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#000">Context&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">stream&lt;/span> &lt;span style="color:#000">Stream&lt;/span>&lt;span style="color:#000;font-weight:bold">)&lt;/span> &lt;span style="color:#204a87;font-weight:bold">error&lt;/span>
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>*注：ServeStream 语义和 Serve 一致具体指 HTTP/1 的 Serve 对应的其实就是“下一个请求的数据已经准备好”；通过实现该接口就可以完成协议处理。
-如果进一步深入，其实和当前 Hertz HTTP/2 的实现其实并不完全对应，究其原因在于：&lt;/p>
-&lt;ol>
-&lt;li>HTTP/2
-的流实现在协议层上，本质上其实只是对引入的更小传输单元帧（Frame）的逻辑承载；&lt;/li>
-&lt;li>理想形态应该是将 HTTP/2
-的实现进行拆分：流（Stream）准备逻辑下层到网络传输层 &amp;amp; 基于流（Stream）的协议处理逻辑保留在协议层。&lt;/li>
-&lt;/ol>
-&lt;h6 id="详细设计">详细设计&lt;/h6>
-&lt;p>暂略&lt;/p>
-&lt;h6 id="优点">优点&lt;/h6>
-&lt;p>方案 A 最大的特点是理想化的将应用协议和网络协议进行分离。
-由于各种历史原因的叠加，TCP、HTTP/1、Websocket、HTTP/2、QUIC、HTTP/3 各自的架构设计存在很多重叠和职责界定不清晰的地方，且当下的很多实现可能还并未形成标准，通过合理的解构，能够帮助
-Hertz 在面对未来可能的协议变迁、实现变迁的过程中仍然能够聚焦在 HTTP 本身这个核心问题之上，最终达成“泛 HTTP 框架”的终极目标。&lt;/p>
-&lt;h6 id="缺点">缺点&lt;/h6>
-&lt;p>方案 A 的缺点其实就是伴随清晰的边界产生的，这也是协议设计和发展中的妥协和不彻底带来的一个现实问题。
-其中，基于流（Stream）的协议层能很好的处理一个流（Stream）上的消息交互，但是同时也是由于对于协议层来说，仅仅显示暴露了流（Stream）这样一个请求级别的接口，但类似
-HTTP/2，HTTP/3 这样基于流（Stream）的应用层协议，一个核心特点在于连接本身的多路复用，换句话说，底层连接和流的对应关系往往是 1:N 的。因此，如果是在协议处理过程中存在对承载流（Stream）的连接本身的控制需求（应该难以避免），就会比较难办（实现上没问题），概念上会和方案 A 的分层抽象存在相抵的地方。
-极致的理想态可能并不太适用于当下的真实环境。&lt;/p>
-&lt;h5 id="方案-b">方案 B&lt;/h5>
-&lt;p>平衡理想形态和事实现状，容易想到的一种解决方案：额外抽象一个连接层出来，这个连接能够拥有操作流（Stream）的语义。网络传输层和协议层的边界从流（Stream）移动到这个连接上面来：&lt;/p>
-&lt;ol>
-&lt;li>网络传输层负责这个连接的准备工作，当连接建立完成后直接将连接交给协议层&lt;/li>
-&lt;li>协议层直接操作建连完成后的链接，不过和 Hertz
-当前的网络传输层连接抽象不同，这个连接不具备直接（理论上）读/写数据的接口和能力，涉及到数据交互的操作需要通过连接提供的流（Stream）相关操作进行，比如要想读取数据，需要通过连接接口开启一个双/单向的流，之后的数据交换操作通过这个开启的流来完成&lt;/li>
-&lt;/ol>
-&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-go" data-lang="go">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#204a87;font-weight:bold">type&lt;/span> &lt;span style="color:#000">ServeStream&lt;/span> &lt;span style="color:#204a87;font-weight:bold">func&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">ctx&lt;/span> &lt;span style="color:#000">context&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#000">Context&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">streamConn&lt;/span> &lt;span style="color:#000">StreamConn&lt;/span>&lt;span style="color:#000;font-weight:bold">)&lt;/span> &lt;span style="color:#204a87;font-weight:bold">error&lt;/span>
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h6 id="详细设计-1">详细设计&lt;/h6>
-&lt;p>明确新增接口的形态之后，StreamConn 具体能够支持的语义就比较清晰了，具体来说，分为两部分：&lt;/p>
-&lt;ul>
-&lt;li>支持连接级别控制能力&lt;/li>
-&lt;li>支持流（Stream）相关控制能力&lt;/li>
-&lt;/ul>
-&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-go" data-lang="go">&lt;span style="display:flex;">&lt;span> &lt;span style="color:#8f5902;font-style:italic">// StreamConn is interface for stream-based connection abstraction.&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#204a87;font-weight:bold">type&lt;/span> &lt;span style="color:#000">StreamConn&lt;/span> &lt;span style="color:#204a87;font-weight:bold">interface&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">GetRawConnection&lt;/span>&lt;span style="color:#000;font-weight:bold">()&lt;/span> &lt;span style="color:#204a87;font-weight:bold">interface&lt;/span>&lt;span style="color:#000;font-weight:bold">{}&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#8f5902;font-style:italic">// HandshakeComplete blocks until the handshake completes (or fails).&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">HandshakeComplete&lt;/span>&lt;span style="color:#000;font-weight:bold">()&lt;/span> &lt;span style="color:#000">context&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#000">Context&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#8f5902;font-style:italic">// CloseWithError closes the connection with an error.&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#8f5902;font-style:italic">// The error string will be sent to the peer.&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">CloseWithError&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">err&lt;/span> &lt;span style="color:#000">ApplicationError&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">errMsg&lt;/span> &lt;span style="color:#204a87;font-weight:bold">string&lt;/span>&lt;span style="color:#000;font-weight:bold">)&lt;/span> &lt;span style="color:#204a87;font-weight:bold">error&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#8f5902;font-style:italic">// LocalAddr returns the local address.&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">LocalAddr&lt;/span>&lt;span style="color:#000;font-weight:bold">()&lt;/span> &lt;span style="color:#000">net&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#000">Addr&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#8f5902;font-style:italic">// RemoteAddr returns the address of the peer.&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">RemoteAddr&lt;/span>&lt;span style="color:#000;font-weight:bold">()&lt;/span> &lt;span style="color:#000">net&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#000">Addr&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#8f5902;font-style:italic">// The context is cancelled when the connection is closed.&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">Context&lt;/span>&lt;span style="color:#000;font-weight:bold">()&lt;/span> &lt;span style="color:#000">context&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#000">Context&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#8f5902;font-style:italic">// Streamer is the interface for stream operations.&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">Streamer&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000;font-weight:bold">}&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#204a87;font-weight:bold">type&lt;/span> &lt;span style="color:#000">Streamer&lt;/span> &lt;span style="color:#204a87;font-weight:bold">interface&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#8f5902;font-style:italic">// AcceptStream returns the next stream opened by the peer, blocking until one is available.&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#8f5902;font-style:italic">// If the connection was closed due to a timeout, the error satisfies&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#8f5902;font-style:italic">// the net.Error interface, and Timeout() will be true.&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">AcceptStream&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">context&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#000">Context&lt;/span>&lt;span style="color:#000;font-weight:bold">)&lt;/span> &lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">Stream&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#204a87;font-weight:bold">error&lt;/span>&lt;span style="color:#000;font-weight:bold">)&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#8f5902;font-style:italic">// AcceptUniStream returns the next unidirectional stream opened by the peer, blocking until one is available.&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#8f5902;font-style:italic">// If the connection was closed due to a timeout, the error satisfies&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#8f5902;font-style:italic">// the net.Error interface, and Timeout() will be true.&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">AcceptUniStream&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">context&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#000">Context&lt;/span>&lt;span style="color:#000;font-weight:bold">)&lt;/span> &lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">ReceiveStream&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#204a87;font-weight:bold">error&lt;/span>&lt;span style="color:#000;font-weight:bold">)&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#8f5902;font-style:italic">// OpenStream opens a new bidirectional QUIC stream.&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#8f5902;font-style:italic">// There is no signaling to the peer about new streams:&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#8f5902;font-style:italic">// The peer can only accept the stream after data has been sent on the stream.&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#8f5902;font-style:italic">// If the error is non-nil, it satisfies the net.Error interface.&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#8f5902;font-style:italic">// When reaching the peer&amp;#39;s stream limit, err.Temporary() will be true.&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#8f5902;font-style:italic">// If the connection was closed due to a timeout, Timeout() will be true.&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">OpenStream&lt;/span>&lt;span style="color:#000;font-weight:bold">()&lt;/span> &lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">Stream&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#204a87;font-weight:bold">error&lt;/span>&lt;span style="color:#000;font-weight:bold">)&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#8f5902;font-style:italic">// OpenStreamSync opens a new bidirectional QUIC stream.&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#8f5902;font-style:italic">// It blocks until a new stream can be opened.&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#8f5902;font-style:italic">// If the error is non-nil, it satisfies the net.Error interface.&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#8f5902;font-style:italic">// If the connection was closed due to a timeout, Timeout() will be true.&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">OpenStreamSync&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">context&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#000">Context&lt;/span>&lt;span style="color:#000;font-weight:bold">)&lt;/span> &lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">Stream&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#204a87;font-weight:bold">error&lt;/span>&lt;span style="color:#000;font-weight:bold">)&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#8f5902;font-style:italic">// OpenUniStream opens a new outgoing unidirectional QUIC stream.&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#8f5902;font-style:italic">// If the error is non-nil, it satisfies the net.Error interface.&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#8f5902;font-style:italic">// When reaching the peer&amp;#39;s stream limit, Temporary() will be true.&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#8f5902;font-style:italic">// If the connection was closed due to a timeout, Timeout() will be true.&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">OpenUniStream&lt;/span>&lt;span style="color:#000;font-weight:bold">()&lt;/span> &lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">SendStream&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#204a87;font-weight:bold">error&lt;/span>&lt;span style="color:#000;font-weight:bold">)&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#8f5902;font-style:italic">// OpenUniStreamSync opens a new outgoing unidirectional QUIC stream.&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#8f5902;font-style:italic">// It blocks until a new stream can be opened.&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#8f5902;font-style:italic">// If the error is non-nil, it satisfies the net.Error interface.&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#8f5902;font-style:italic">// If the connection was closed due to a timeout, Timeout() will be true.&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000">OpenUniStreamSync&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">context&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#000">Context&lt;/span>&lt;span style="color:#000;font-weight:bold">)&lt;/span> &lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">SendStream&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#204a87;font-weight:bold">error&lt;/span>&lt;span style="color:#000;font-weight:bold">)&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000;font-weight:bold">}&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#204a87;font-weight:bold">type&lt;/span> &lt;span style="color:#000">Stream&lt;/span> &lt;span style="color:#204a87;font-weight:bold">interface&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">ReceiveStream&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">SendStream&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000;font-weight:bold">}&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#204a87;font-weight:bold">type&lt;/span> &lt;span style="color:#000">ReceiveStream&lt;/span> &lt;span style="color:#204a87;font-weight:bold">interface&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">StreamID&lt;/span>&lt;span style="color:#000;font-weight:bold">()&lt;/span> &lt;span style="color:#204a87;font-weight:bold">int64&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">io&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#000">Reader&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#8f5902;font-style:italic">// CancelRead aborts receiving on this stream.&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#8f5902;font-style:italic">// It will ask the peer to stop transmitting stream data.&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#8f5902;font-style:italic">// Read will unblock immediately, and future Read calls will fail.&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#8f5902;font-style:italic">// When called multiple times or after reading the io.EOF it is a no-op.&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">CancelRead&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">err&lt;/span> &lt;span style="color:#000">ApplicationError&lt;/span>&lt;span style="color:#000;font-weight:bold">)&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#8f5902;font-style:italic">// SetReadDeadline sets the deadline for future Read calls and&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#8f5902;font-style:italic">// any currently-blocked Read call.&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#8f5902;font-style:italic">// A zero value for t means Read will not time out.&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">SetReadDeadline&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">t&lt;/span> &lt;span style="color:#000">time&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#000">Time&lt;/span>&lt;span style="color:#000;font-weight:bold">)&lt;/span> &lt;span style="color:#204a87;font-weight:bold">error&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000;font-weight:bold">}&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#204a87;font-weight:bold">type&lt;/span> &lt;span style="color:#000">SendStream&lt;/span> &lt;span style="color:#204a87;font-weight:bold">interface&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">StreamID&lt;/span>&lt;span style="color:#000;font-weight:bold">()&lt;/span> &lt;span style="color:#204a87;font-weight:bold">int64&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#8f5902;font-style:italic">// Writer writes data to the stream.&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#8f5902;font-style:italic">// Write can be made to time out and return a net.Error with Timeout() == true&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#8f5902;font-style:italic">// after a fixed time limit; see SetDeadline and SetWriteDeadline.&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#8f5902;font-style:italic">// If the stream was canceled by the peer, the error implements the StreamError&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#8f5902;font-style:italic">// interface, and Canceled() == true.&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#8f5902;font-style:italic">// If the connection was closed due to a timeout, the error satisfies&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#8f5902;font-style:italic">// the net.Error interface, and Timeout() will be true.&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">io&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#000">Writer&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#8f5902;font-style:italic">// CancelWrite aborts sending on this stream.&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#8f5902;font-style:italic">// Data already written, but not yet delivered to the peer is not guaranteed to be delivered reliably.&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#8f5902;font-style:italic">// Write will unblock immediately, and future calls to Write will fail.&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#8f5902;font-style:italic">// When called multiple times or after closing the stream it is a no-op.&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">CancelWrite&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">err&lt;/span> &lt;span style="color:#000">ApplicationError&lt;/span>&lt;span style="color:#000;font-weight:bold">)&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#8f5902;font-style:italic">// Closer closes the write-direction of the stream.&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#8f5902;font-style:italic">// Future calls to Write are not permitted after calling Close.&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#8f5902;font-style:italic">// It must not be called concurrently with Write.&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#8f5902;font-style:italic">// It must not be called after calling CancelWrite.&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">io&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#000">Closer&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#8f5902;font-style:italic">// The Context is canceled as soon as the write-side of the stream is closed.&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#8f5902;font-style:italic">// This happens when Close() or CancelWrite() is called, or when the peer&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#8f5902;font-style:italic">// cancels the read-side of their stream.&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">Context&lt;/span>&lt;span style="color:#000;font-weight:bold">()&lt;/span> &lt;span style="color:#000">context&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#000">Context&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#8f5902;font-style:italic">// SetWriteDeadline sets the deadline for future Write calls&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#8f5902;font-style:italic">// and any currently-blocked Write call.&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#8f5902;font-style:italic">// Even if write times out, it may return n &amp;gt; 0, indicating that&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#8f5902;font-style:italic">// some data was successfully written.&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#8f5902;font-style:italic">// A zero value for t means Write will not time out.&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">SetWriteDeadline&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">t&lt;/span> &lt;span style="color:#000">time&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#000">Time&lt;/span>&lt;span style="color:#000;font-weight:bold">)&lt;/span> &lt;span style="color:#204a87;font-weight:bold">error&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000;font-weight:bold">}&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#204a87;font-weight:bold">type&lt;/span> &lt;span style="color:#000">ApplicationError&lt;/span> &lt;span style="color:#204a87;font-weight:bold">interface&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">ErrCode&lt;/span>&lt;span style="color:#000;font-weight:bold">()&lt;/span> &lt;span style="color:#204a87;font-weight:bold">uint64&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">fmt&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#000">Stringer&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000;font-weight:bold">}&lt;/span>
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h6 id="优点-1">优点&lt;/h6>
-&lt;p>相较于方案 A，本方案最大的优势在于，能够在语义层面很好的自洽：协议层与网络传输层的职责节点清晰明确，无需为一些历史问题妥协设计语义，同时当下主流的开源实现（HTTP/2
-及 HTTP/3 over QUIC）都能够比较容易得融合到这个架构中来。
-对协议层直接暴露连接的接口，给协议层提供了极大的自由度和对连接的控制力，是一个更加符合实际的抽象方式。&lt;/p>
-&lt;h6 id="缺点-1">缺点&lt;/h6>
-&lt;p>相比于 Hertz 当前存在的网络传输层抽象（主要是 HTTP/1.1 的实现），新增的这套抽象层级上并不完全对等（不过这个也是 HTTP
-协议大版本之间的一个明显的 break change），目前看起来，要想完全在抽象层面填平这个 gap
-困难相对较大。不过，新增的“基于流的连接”这个概念应该也不完全是一件坏事，针对拥有相似语义的协议簇具有统一语义的作用，不过也要求类似基于流来实现多路复用的协议最好能够按照抽象进行拆分（目前的 Websocket、HTTP/2
-还不是此形态）&lt;/p>
-&lt;h5 id="方案选型">方案选型&lt;/h5>
-&lt;p>方案 B
-在综合考虑架构形态和事实的一些主流实现后方案 B 更加符合 Hertz 的分层演进路线&lt;/p>
-&lt;h3 id="协议层">协议层&lt;/h3>
-&lt;p>基于网络传输层方案 B 进一步往前走，协议层的实现就相对灵活的多了：针对 StreamConn 提供的接口管理连接，同时负责流（Stream）的开启和关闭即可。
-不过，由于引入的 StreamConn 和当前网络传输层的 Conn 接口定义不一致，因此协议层更多需要考虑的是基于 StreamConn 和 Conn
-的两套回调如何在协议层以及协议服务器（Protocol Server）注册阶段完成融合。基本的要求是对目前的现状不能有任何影响。&lt;/p>
-&lt;h4 id="现状-1">现状&lt;/h4>
-&lt;p>通过 Hertz 提供的接口就可以便捷的将实现了 Server 接口的自定义协议服务器（Protocol Server）添加到 Hertz 实例支持的协议 map
-中来。详细方式参考这里。本质上其实还是要求扩展 Server 实现&lt;/p>
-&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-go" data-lang="go">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000">Serve&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">c&lt;/span> &lt;span style="color:#000">context&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#000">Context&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">conn&lt;/span> &lt;span style="color:#000">network&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#000">Conn&lt;/span>&lt;span style="color:#000;font-weight:bold">)&lt;/span> &lt;span style="color:#204a87;font-weight:bold">error&lt;/span>
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>这个接口，而目前的 HTTP/1.1、HTTP/2 的实现也都是按照这个方式来进行的。&lt;/p>
-&lt;h4 id="引入-streamconn">引入 StreamConn&lt;/h4>
-&lt;h5 id="接口设计-1">接口设计&lt;/h5>
-&lt;p>如网络传输层抽象方案 B 所述，新引入的 StreamConn 本身和当前的 network.Conn 在语义上存在很大的 diff，导致硬融合这两个接口为一个存在一定的困难。在“新增
-QUIC &amp;amp; HTTP3 支持不能破坏存量抽象”的基本底线之上，更加合理的方式是显示增加一个独立且平行的基于流的 Server
-接口：
-StreamServer：&lt;/p>
-&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-go" data-lang="go">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#204a87;font-weight:bold">type&lt;/span> &lt;span style="color:#000">StreamServer&lt;/span> &lt;span style="color:#204a87;font-weight:bold">interface&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">Serve&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">c&lt;/span> &lt;span style="color:#000">context&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#000">Context&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">conn&lt;/span> &lt;span style="color:#000">network&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#000">StreamConn&lt;/span>&lt;span style="color:#000;font-weight:bold">)&lt;/span> &lt;span style="color:#204a87;font-weight:bold">error&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000;font-weight:bold">}&lt;/span>
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>Protocol server factory:&lt;/p>
-&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-go" data-lang="go">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#204a87;font-weight:bold">type&lt;/span> &lt;span style="color:#000">StreamServerFactory&lt;/span> &lt;span style="color:#204a87;font-weight:bold">interface&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>&lt;span style="color:#000">New&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">core&lt;/span> &lt;span style="color:#000">Core&lt;/span>&lt;span style="color:#000;font-weight:bold">)&lt;/span> &lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">server&lt;/span> &lt;span style="color:#000">protocol&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#000">StreamServer&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">err&lt;/span> &lt;span style="color:#204a87;font-weight:bold">error&lt;/span>&lt;span style="color:#000;font-weight:bold">)}&lt;/span>&lt;span style="color:#8f5902;font-style:italic">// Core is the core interface that promises to be provided for the protocol layer extensions&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#204a87;font-weight:bold">type&lt;/span> &lt;span style="color:#000">Core&lt;/span> &lt;span style="color:#204a87;font-weight:bold">interface&lt;/span> &lt;span style="color:#000;font-weight:bold">{&lt;/span>&lt;span style="color:#8f5902;font-style:italic">// IsRunning Check whether engine is running or not&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">IsRunning&lt;/span>&lt;span style="color:#000;font-weight:bold">()&lt;/span> &lt;span style="color:#204a87;font-weight:bold">bool&lt;/span>&lt;span style="color:#8f5902;font-style:italic">// A RequestContext pool ready for protocol server impl&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">GetCtxPool&lt;/span>&lt;span style="color:#000;font-weight:bold">()&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">*&lt;/span>&lt;span style="color:#000">sync&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#000">Pool&lt;/span>&lt;span style="color:#8f5902;font-style:italic">// Business logic entrance&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#8f5902;font-style:italic">// After pre-read works, protocol server may call this method&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#8f5902;font-style:italic">// to introduce the middlewares and handlers&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">ServeHTTP&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">ctx&lt;/span> &lt;span style="color:#000">context&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#000">Context&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">c&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">*&lt;/span>&lt;span style="color:#000">app&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#000">RequestContext&lt;/span>&lt;span style="color:#000;font-weight:bold">)&lt;/span>&lt;span style="color:#8f5902;font-style:italic">// GetTracer for tracing requirement&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#000">GetTracer&lt;/span>&lt;span style="color:#000;font-weight:bold">()&lt;/span> &lt;span style="color:#000">tracer&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#000">Controller&lt;/span>
-&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000;font-weight:bold">}&lt;/span>
-&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>按照这套新的抽象接口展开，对于存量架构的影响就非常小了，不过需要新增针对新增的网络抽象和协议抽象的映射。
-当前网络传输层、协议层间不存在明显耦合：&lt;/p>
-&lt;p>网络传输层原生提供：&lt;/p>
-&lt;ol>
-&lt;li>基于 netpoll 的实现&lt;/li>
-&lt;li>基于标准库的实现&lt;/li>
-&lt;/ol>
-&lt;p>协议层提供：&lt;/p>
-&lt;ol>
-&lt;li>HTTP/1.1&lt;/li>
-&lt;li>HTTP/2&lt;/li>
-&lt;/ol>
-&lt;p>排除掉 Netpoll 不支持 TLS 这一点来看，其实网络传输层和协议层是能够自由组合，总共 4（2*2）种不同的搭配。
-但新引入的 StreamConn（网络传输层） 、StreamServer（协议层）其实和上述实现完全平行，如果网络传输层采用 StreamConn 这套抽象接口，协议层也就只能是对接实现了 StreamServer 的 Server 了（目前的 HTTP/1.1、HTTP/2 都不是，不过 HTTP/2 是条流写回对存在改造/重写适配上 StreamConn &amp;amp; StreamServer 的可能性的）。&lt;/p>
-&lt;h2 id="实现">实现&lt;/h2>
-&lt;p>&lt;a href="https://github.com/hertz-contrib/http3">https://github.com/hertz-contrib/http3&lt;/a>&lt;/p></description></item><item><title>Blog: Kitex v0.6.1 版本发布</title><link>https://www.cloudwego.io/zh/blog/2023/06/19/kitex-v0.6.1-%E7%89%88%E6%9C%AC%E5%8F%91%E5%B8%83/</link><pubDate>Mon, 19 Jun 2023 00:00:00 +0000</pubDate><guid>https://www.cloudwego.io/zh/blog/2023/06/19/kitex-v0.6.1-%E7%89%88%E6%9C%AC%E5%8F%91%E5%B8%83/</guid><description>
+&lt;/ul></description></item><item><title>Blog: Kitex v0.6.1 版本发布</title><link>https://www.cloudwego.io/zh/blog/2023/06/19/kitex-v0.6.1-%E7%89%88%E6%9C%AC%E5%8F%91%E5%B8%83/</link><pubDate>Mon, 19 Jun 2023 00:00:00 +0000</pubDate><guid>https://www.cloudwego.io/zh/blog/2023/06/19/kitex-v0.6.1-%E7%89%88%E6%9C%AC%E5%8F%91%E5%B8%83/</guid><description>
 &lt;h2 id="详细变更">&lt;strong>详细变更&lt;/strong>&lt;/h2>
 &lt;h2 id="hotfix">Hotfix:&lt;/h2>
 &lt;ul>
@@ -4366,4 +4083,205 @@ xDS 支持的扩展单独开源到了 &lt;a href="https://github.com/kitex-contr
 &lt;li>推进高性能 Rust 解决方案的落地，持续探索 Rust 高性能技术解决方案，构建 Rust 相关生态。&lt;/li>
 &lt;/ul>
 &lt;p>如果大家对 CloudWeGo 开源社区，以及刚才提到的一些技术解决方案、企业的落地支持有任何的疑问，可以关注 CloudWeGo 公众号，
-我们会在公众号上发布一些新闻动态以及各个相关场景的案例报道，同时我们也会在公众号上提供相关的技术支持。感谢大家的关注！&lt;/p></description></item></channel></rss>
+我们会在公众号上发布一些新闻动态以及各个相关场景的案例报道，同时我们也会在公众号上提供相关的技术支持。感谢大家的关注！&lt;/p></description></item><item><title>Blog: 选择 Go 还是 Rust？CloudWeGo-Volo 基于 Rust 语言的探索实践</title><link>https://www.cloudwego.io/zh/blog/2022/09/06/%E9%80%89%E6%8B%A9-go-%E8%BF%98%E6%98%AF-rustcloudwego-volo-%E5%9F%BA%E4%BA%8E-rust-%E8%AF%AD%E8%A8%80%E7%9A%84%E6%8E%A2%E7%B4%A2%E5%AE%9E%E8%B7%B5/</link><pubDate>Tue, 06 Sep 2022 00:00:00 +0000</pubDate><guid>https://www.cloudwego.io/zh/blog/2022/09/06/%E9%80%89%E6%8B%A9-go-%E8%BF%98%E6%98%AF-rustcloudwego-volo-%E5%9F%BA%E4%BA%8E-rust-%E8%AF%AD%E8%A8%80%E7%9A%84%E6%8E%A2%E7%B4%A2%E5%AE%9E%E8%B7%B5/</guid><description>
+&lt;h2 id="cloudwego-选择-rust-语言进行探索的原因">CloudWeGo 选择 Rust 语言进行探索的原因&lt;/h2>
+&lt;p>CloudWeGo 正式官宣新一代 Rust RPC 框架 &lt;a href="https://github.com/cloudwego/volo">Volo&lt;/a> 开源！CloudWeGo 为什么会选择 Rust 这门语言进行探索呢？本文首先介绍一下其中的原因。&lt;/p>
+&lt;h3 id="go-的代价">Go 的代价&lt;/h3>
+&lt;ul>
+&lt;li>&lt;strong>深度优化困难&lt;/strong>&lt;/li>
+&lt;/ul>
+&lt;p>&lt;a href="https://github.com/cloudwego/volo">Volo&lt;/a> 早期的团队成员来自于 &lt;a href="https://github.com/cloudwego/kitex">Kitex&lt;/a> 项目（CloudWeGo 开源的 Golang 微服务 RPC 框架）。当时我们投入了大量的时间和精力优化 &lt;a href="https://github.com/cloudwego/kitex">Kitex&lt;/a> 以及其他相关基础库的性能，最终却发现实现 Go 的深度优化有些困难。
+我们仅仅可以做一些算法层面和实现层面的优化，如果想往下继续做其他层面的优化，比如指令层面的优化，是很难以低成本的方式实现的。而且在大多数情况下很多优化是要和 runtime 以及编译器作斗争的。&lt;/p>
+&lt;ul>
+&lt;li>&lt;strong>工具链和包管理不够成熟&lt;/strong>&lt;/li>
+&lt;/ul>
+&lt;p>例如，使用 &lt;a href="https://github.com/cloudwego/kitex">Kitex&lt;/a> 框架时需要先使用对应的 kitex 工具生成代码，才能正常编译使用。虽然这种情况可能在 &lt;a href="https://github.com/cloudwego/frugal">Frugal&lt;/a> 工具成熟之后有所改善，但是在 IDL 有更新的情况下，还是需要使用 kitex 重新生成对应的结构体。
+这个问题并不是 &lt;a href="https://github.com/cloudwego/kitex">Kitex&lt;/a> 的问题，而是 Go 语言本身的问题，Go 语言在编译时没有提供类似的能力。&lt;/p>
+&lt;ul>
+&lt;li>&lt;strong>抽象能力较弱&lt;/strong>&lt;/li>
+&lt;/ul>
+&lt;p>Go 语言的抽象能力是比较弱的，而且 Go 语言里面的抽象并不是零成本抽象，而是有代价的抽象。&lt;/p>
+&lt;p>那么使用 Go 语言需要付出的三个代价具体应该如何理解呢？下面进行具体分析。&lt;/p>
+&lt;h3 id="深度优化困难">深度优化困难&lt;/h3>
+&lt;p>如图所示，这是 &lt;a href="https://github.com/cloudwego/kitex">Kitex&lt;/a> 项目生成代码的简单示例。这两段代码的目的是在解析出错的时候，把一些信息返回给上层。在 &lt;a href="https://github.com/cloudwego/kitex">Kitex&lt;/a> 新版本代码公开之后，
+业务团队同学反映他们线上序列化和反序列化这部分的性能相差了 20%，经排查之后，我们发现了这个改动。&lt;/p>
+&lt;p>&lt;img src="https://www.cloudwego.io/img/blog/Rust_or_Go/2.png" alt="image">&lt;/p>
+&lt;p align="center">
+Kitex 新版本的代码
+&lt;/p>
+&lt;p>&lt;img src="https://www.cloudwego.io/img/blog/Rust_or_Go/3.png" alt="image">&lt;/p>
+&lt;p align="center">
+Kitex 旧版本的代码
+&lt;/p>
+&lt;p>这个改动的本意是希望能给客户提供更多错误上下文的信息。但是它带来了什么问题呢？如下图，它把汇编代码直接一对一地生成到主流程之中，也就是说 Go 语言的编译器会逐行逐句地进行翻译，并且不会做重排。&lt;/p>
+&lt;p>&lt;img src="https://www.cloudwego.io/img/blog/Rust_or_Go/4.png" alt="image">&lt;/p>
+&lt;p>那么这会带来什么问题呢？由于我们主流程中的代码与正常流程相比变多了，所以我们重点关注一下 &lt;code>L1-icache-load-misses&lt;/code> 这一行，
+新版本的代码比旧版本的代码在 L1 指令 &lt;code>cache&lt;/code> 层面 &lt;code>cache-misses&lt;/code> 高出 20%，这也就是我们的代码效率降低 20% 的原因。那么我们是如何解决这个问题的呢？&lt;/p>
+&lt;p>我们的解决方案如下图所示。在 &lt;code>err != nil&lt;/code> 的情况下，直接手动加一条 &lt;code>goto&lt;/code> 语句，把所有错误处理这部分的代码放到函数末尾，即 &lt;code>return&lt;/code> 之后。
+这相当于在编译器没有实现指令重排的情况下，用人工方式做一次指令重排。最后优化的效果是非常明显的，可以看到 &lt;code>cache-misses&lt;/code> 比之前的那一次还要降低 25%。&lt;/p>
+&lt;p>&lt;img src="https://www.cloudwego.io/img/blog/Rust_or_Go/5.png" alt="image">&lt;/p>
+&lt;p>上述例子只是使用 Go 语言时在做深度优化方面遇到的难题。在抽象能力方面，使用 Go 语言也会遇到一些困难。&lt;/p>
+&lt;h3 id="零成本抽象zero-cost-abstraction">零成本抽象(Zero-Cost Abstraction)&lt;/h3>
+&lt;p>什么是零成本抽象呢？使用 C++ 和 Rust 的同学对这个概念可能有所了解。零成本抽象是指我们不需要对没有使用的功能付出编译和运行的开销，也就是用户不需要给没有使用的东西付费。
+对应地，如果用户对于已经使用的东西也没有再继续优化的空间，因为它已经默认提供了最佳实践。总结如下：&lt;/p>
+&lt;ul>
+&lt;li>不用的东西，不需要为之付出代价；&lt;/li>
+&lt;li>用到的东西，你也不可能做得更好。&lt;/li>
+&lt;/ul>
+&lt;p>那么为什么说 Go 语言里面没有零成本抽象呢？以 Thrift 编解码为例，我们最开始使用的是 Apache Thrift，它为了支持多种不同 Protocol、Transport 组合，
+抽象出了 TProtocol Interface、TTransport Interface，但 &lt;a href="https://github.com/cloudwego/kitex">Kitex&lt;/a> 直接依赖具体的 BinaryProtocol 的实现（struct）。可以试想，Apache Thrift 这么做的代价是什么呢？这就是 Go 里面 Interface 带来的代价。&lt;/p>
+&lt;p>Go 里面 Interface 是动态分发的，也就是运行时通过类型元数据和指针去动态调用所需方法，它会在运行时多做一次内存寻址。但这并不是最关键的，最关键的是它会使得编译器没有办法 inline 以及没有办法做很多优化。
+一般比较注重性能的语言都会同时提供静态分发和动态分发两种方式的抽象能力，但是 Go 语言只提供了 Interface 动态分发能力，也就可以理解为在 Go 语言中抽象和性能是不可兼得的，这也就是 Go 语言抽象能力比较弱的原因。&lt;/p>
+&lt;h3 id="sonic">Sonic&lt;/h3>
+&lt;p>&lt;a href="https://github.com/bytedance/sonic">Sonic&lt;/a> 是 CloudWeGo 开源的一个 JSON 库，这个库有很多 CloudWeGo 的用户都使用过。最初这个库组成部分如下图所示，有 2/3 的代码都是 Assembly 汇编。&lt;/p>
+&lt;p>&lt;img src="https://www.cloudwego.io/img/blog/Rust_or_Go/6.png" alt="image">&lt;/p>
+&lt;p>在 &lt;a href="https://github.com/bytedance/sonic">Sonic&lt;/a> 库中仅有的 27% 的 Go 源代码如下图所示。虽然它被统计到了 Go 代码中，但实际上是汇编代码。所以我们可以总结出，世界上最快的 Go 语言程序大概就是用汇编代码写就的。&lt;/p>
+&lt;p>&lt;img src="https://www.cloudwego.io/img/blog/Rust_or_Go/7.png" alt="image">&lt;/p>
+&lt;h3 id="性能最好的-go-json-库">性能最好的 Go JSON 库&lt;/h3>
+&lt;p>尽管 &lt;a href="https://github.com/bytedance/sonic">Sonic&lt;/a> 里面采用了各种黑科技，甚至有 2/3 的代码都是经过人工精调的汇编代码，但是 &lt;a href="https://github.com/bytedance/sonic">Sonic&lt;/a> 的综合性能还是不如 Rust 最通用的 Serde JSON 库。
+如图所示，绿色柱状图代表 Serde JSON 库，蓝色柱状图代表 &lt;a href="https://github.com/bytedance/sonic">Sonic&lt;/a> 库。根据这个 Benchmark，即使是和 C、C++ 的库相比，用 Rust 语言编写的这个库在各方面综合表现也是最佳的。&lt;/p>
+&lt;p>试想，又有多少 Go 组件能够得到如此大量的人力投入从而进行深度优化呢？这只是一个例子，其实我们之前在 &lt;a href="https://github.com/cloudwego/kitex">Kitex&lt;/a> 中的很多优化也是要和编译器以及 runtime 作斗争的。因此我们认识到在 Go 语言中想做深度优化是非常困难的。&lt;/p>
+&lt;p>&lt;img src="https://www.cloudwego.io/img/blog/Rust_or_Go/8.png" alt="image">&lt;/p>
+&lt;h3 id="关于-rust">关于 Rust&lt;/h3>
+&lt;p>我们为什么要选择 Rust 这门语言呢？在解答这个问题之前，要先了解这门语言。所以先介绍一下 Rust 语言的发展历史。&lt;/p>
+&lt;h3 id="rust-的历史">Rust 的历史&lt;/h3>
+&lt;p>Rust 语言由 Graydon Hoare 私人研发，他是 Mozilla 做编程语言的工程师，专门给语言开发编译器和工具集。当时 Mozilla 要开发 Servo 引擎，想要保证安全的同时又能拥有高性能，
+于是就选择了 Rust 语言。2010 - 2015 年期间，Rust 是有 GC 的，后来社区一致表示支持 Rust 必须要有高性能，所以 GC 被取缔。2015 年，Rust 发布 1.0 版本，这也表示正式官宣 Rust 的稳定性。&lt;/p>
+&lt;p>Rust 是以三年为单位进行社区规划和迭代的。2015 - 2018 年，Rust 达成了生产力的承诺，也就是它的工具文档还有编译器变得更加智能，也对开发者更加友好了。
+2018 - 2021 年，Rust 做了更多异步生态的完善。之前的 Rust 是没有异步生态的，但是自 2018 年开始，它正式引入了异步功能。&lt;/p>
+&lt;p>&lt;img src="https://www.cloudwego.io/img/blog/Rust_or_Go/9.png" alt="image">&lt;/p>
+&lt;h3 id="rust-2024">Rust 2024&lt;/h3>
+&lt;p>2021 - 2024 年，Rust 有一个 2024 规划，主题叫做 Scaling Enpowerment（扩展授权）。之所以取这个名字，是因为 Rust 有一个目标——“empower everyone to build reliable and efficient software”。
+Rust 最关注也是大家经常诟病的一点，就是 Rust 的整个学习曲线非常陡峭，所以在这个规划中写道 “Flatten the learning curve”。&lt;/p>
+&lt;p>&lt;img src="https://www.cloudwego.io/img/blog/Rust_or_Go/10.png" alt="image">&lt;/p>
+&lt;h3 id="rust-三大优势">Rust 三大优势&lt;/h3>
+&lt;p>在 2022 年，很多开源项目已经呈现爆炸式增长。我们了解到 Rust 这门语言后，发现它有三大非常重要的优势：第一是高性能；第二是很强的安全性；第三是协作方便。
+因此我们想尝试在服务端使用 Rust 语言开发微服务，以此解决我们面临的一些性能上的问题。&lt;/p>
+&lt;ul>
+&lt;li>&lt;strong>性能&lt;/strong>&lt;/li>
+&lt;/ul>
+&lt;p>很多用户都对性能有很高的要求，也想知道 Rust 的性能如何。下图是各语言的 Benchmark 对比结果，可以看出 Rust 的性能是非常优秀的，远超过 Go 语言，甚至比 C++ 的性能更好。&lt;/p>
+&lt;p>当然我们要着重说明，这个 Benchmark 要求所有语言必须使用相同的算法，并且不得经过额外优化。毕竟如果都用汇编代码写，其实各语言性能相差无几。
+但是在真正的开发过程中，又有多少代码能够经过那么大量的人工精细优化呢？另外，有人可能会对 Rust 的性能比 C 和 C++ 更优秀产生质疑，其实这也是因为 Rust 对于程序员的输入要求得更加严格，所以编译器可以做更进一步的优化。&lt;/p>
+&lt;p>&lt;img src="https://www.cloudwego.io/img/blog/Rust_or_Go/11.png" alt="image">&lt;/p>
+&lt;ul>
+&lt;li>&lt;strong>安全性&lt;/strong>&lt;/li>
+&lt;/ul>
+&lt;p>因为在 Rust 语言的安全性方面可查阅到大量资料，因此不再过多赘述。只阐述一个重要结论：Rust 1.0 之后，在非 Unsafe 代码中是不可能出现内存安全问题的。
+这个结论是通过数学证明过的，因此非常可靠。我们应该如何理解这个结论呢？可以从它的推论入手，即：一切内存/并发安全问题，都是 unsafe 代码导致的。
+也就是如果真的出现安全问题，我们可以限制在一个非常小的范围内进行排查。因为毕竟绝大多数的 Rust 语言代码都是 Safe Rust，而不是 Unsafe Rust。&lt;/p>
+&lt;ul>
+&lt;li>&lt;strong>协作&lt;/strong>&lt;/li>
+&lt;/ul>
+&lt;p>Rust 是一门真正通过工程实践形成的语言，它有非常 &lt;strong>智能的编译器&lt;/strong> 、 &lt;strong>完善的文档&lt;/strong> 、&lt;strong>集群的工具链&lt;/strong>和 &lt;strong>成熟的包管理&lt;/strong> ，因此 Rust 非常适合协作。
+我们在使用时可以专注于逻辑功能的实现，而不用担心内存安全和并发安全的问题等等。还有非常重要的一点就是可以限制别人的代码，因为如果别人的代码有内存安全问题或并发安全问题，将无法进行编译。
+所以在做 Code Review 时，我们只需关注逻辑上的功能正确性就可以，因为只要能够通过编译提交上来的代码，安全性是不必担心的。
+这虽然是 Rust 语言的优点，但也给使用者带来一些不便之处。我们常听说 Rust 开发者很难，也正是因为编译。&lt;/p>
+&lt;h3 id="rust-的影响力">Rust 的影响力&lt;/h3>
+&lt;p>如下图，Rust 已经连续七年位居 Stack Overflow 最受开发者喜爱的编程语言榜榜首。此外，有一个非常重量级的项目叫做 “Rust for Linux”，
+除了 C 语言之外，Rust 是 Linux 内核迄今为止接受的唯一语言。这些成绩足以看出 Rust 在开源业界的重量级和影响力。&lt;/p>
+&lt;p>&lt;img src="https://www.cloudwego.io/img/blog/Rust_or_Go/12.png" alt="image">&lt;/p>
+&lt;h2 id="创建-rpc-框架-volo-的原因">创建 RPC 框架 Volo 的原因&lt;/h2>
+&lt;p>明确了 CloudWeGo 选择 Rust 语言的原因以及 Rust 的优势，我也阐述一下创造 &lt;a href="https://github.com/cloudwego/volo">Volo&lt;/a> 框架的原因以及 &lt;a href="https://github.com/cloudwego/volo">Volo&lt;/a> 的特点。&lt;/p>
+&lt;h3 id="生态现状">生态现状&lt;/h3>
+&lt;p>创造 &lt;a href="https://github.com/cloudwego/volo">Volo&lt;/a> 框架与当时的生态情况是有关的。我们当时调研过整个社区的生态，发现没有生产可用的 Async Thrift 实现。哪怕是社区中最成熟的 Tonic 框架，它的服务治理功能也是比较弱的，而且易用性也不够强。
+更重要的是当时在 Rust 语言社区，还没有基于 Generic Associated Type（GAT，Rust 语言最新的⼀个重量级 Feature）和 Type Alias Impl Trait（TAIT，另⼀个重量级 Feature）的易用性强的抽象。&lt;/p>
+&lt;h3 id="易用性">易用性&lt;/h3>
+&lt;p>为什么单独说明 GAT 和 TAIT 这两个特性呢？按照 Rust 官方团队的说法，这是自 Rust 1.0 以来语言层面和 Type System 层面最大的变化。
+举例简单说明，下图是一个现有的社区方案，代码是没有使用 GAT 和 TAIT 的超时中间件的编写，我们可以发现如果要保证性能不受损耗，需要编写大量代码。&lt;/p>
+&lt;p>&lt;img src="https://www.cloudwego.io/img/blog/Rust_or_Go/13.png" alt="image">&lt;/p>
+&lt;p>而在 &lt;a href="https://github.com/cloudwego/volo">Volo&lt;/a> 框架中，因为采用了 GAT 和 TAIT 这两个特性，编写代码如下图所示。我们可以明显对比出代码量和易用性方面的差距是非常明显的。
+Rust 以难学难用而闻名，我们希望尽可能地降低用户使用 &lt;a href="https://github.com/cloudwego/volo">Volo&lt;/a> 框架和 Rust 语言编写微服务的难度，提供给用户最符合人体工程学和直觉的编码体验，因此我们把框架易用性作为重要目标之一。
+只有让大家真正地使用 &lt;a href="https://github.com/cloudwego/volo">Volo&lt;/a>，&lt;a href="https://github.com/cloudwego/volo">Volo&lt;/a> 才能体现它的价值。所以 &lt;a href="https://github.com/cloudwego/volo">Volo&lt;/a> 框架 &lt;strong>基于 GAT 和 TAIT 特性&lt;/strong> ， &lt;strong>大大提升了用户编写中间件的便利程度&lt;/strong> 。&lt;/p>
+&lt;p>&lt;img src="https://www.cloudwego.io/img/blog/Rust_or_Go/14.png" alt="image">&lt;/p>
+&lt;p>除此之外，我们提供了 &lt;a href="https://github.com/cloudwego/volo">Volo&lt;/a> &lt;strong>命令行工具生成默认 Layout&lt;/strong> ，并且 &lt;a href="https://github.com/cloudwego/volo">Volo&lt;/a> 的命令行工具提供 &lt;strong>IDL 管理的能力&lt;/strong> ，这在业界是首例。
+我们还提供了过程宏等能够再度降低 Service 编写难度的功能。当然还有很多其他的精心设计，比如很多 API 都是尽量以最符合人体工程学的方式给出的，也可以避免误用。&lt;/p>
+&lt;h3 id="扩展性">扩展性&lt;/h3>
+&lt;ul>
+&lt;li>&lt;strong>基于 Service 的抽象&lt;/strong>&lt;/li>
+&lt;/ul>
+&lt;p>受益于 Rust 强大的表达和抽象能力，开发者可以基于非常灵活的 Service 抽象，用统一的形式对 RPC 的元信息请求和响应做一些处理，比如服务发现、负载均衡等服务治理功能都是直接实现 Service 即可。&lt;/p>
+&lt;p>&lt;img src="https://www.cloudwego.io/img/blog/Rust_or_Go/15.png" alt="image">&lt;/p>
+&lt;ul>
+&lt;li>&lt;strong>基于 RPC 元信息的控制&lt;/strong>&lt;/li>
+&lt;/ul>
+&lt;p>另外，在我们的框架设计中，所有框架行为都是受到 RPC 元信息控制的。因此我们只要在 Service 中对 RPC 元信息进行修改，就能直接控制框架的行为，从而实现所需的功能。&lt;/p>
+&lt;p>下图是 &lt;a href="https://github.com/cloudwego/volo">Volo&lt;/a> 自带的负载均衡中间件实现中最关键的一部分，即红色线框圈出的代码。只要把 Load Balance 选出来的地址放到 RPC 元信息中就可以，其他代码可以直接忽视掉。&lt;/p>
+&lt;p>&lt;img src="https://www.cloudwego.io/img/blog/Rust_or_Go/16.png" alt="image">&lt;/p>
+&lt;h3 id="性能">性能&lt;/h3>
+&lt;p>如果过多谈论框架的性能对比，容易引战。但是基于 Rust 语言的性能优势以及 CloudWeGo 团队对于极致性能的追求，我们可以预想到 &lt;a href="https://github.com/cloudwego/volo">Volo&lt;/a> 的性能也是非常高的。&lt;/p>
+&lt;p>如果把 &lt;a href="https://github.com/cloudwego/volo">Volo&lt;/a> 和 &lt;a href="https://github.com/cloudwego/kitex">Kitex&lt;/a> 进行跨语言的对比也是不太公平的，但是因为很多用户都关注性能数据，为了让使用者对 &lt;a href="https://github.com/cloudwego/volo">Volo&lt;/a> 框架的性能有大致的了解，我们只给出比较简单的性能数据。
+在与 &lt;a href="https://github.com/cloudwego/kitex">Kitex&lt;/a> 相同的测试条件（限制 4C）下，&lt;a href="https://github.com/cloudwego/volo">Volo&lt;/a> 极限 QPS 为 35W。同时，我们内部正在验证基于 &lt;a href="https://github.com/bytedance/monoio">Monoio&lt;/a>（CloudWeGo 开源的 Rust Async Runtime）的版本，极限 QPS 可以达到 44W。&lt;/p>
+&lt;p>当然还有很多其他的性能指标，比如响应时间也是非常影响用户体验的。所以除了 Benchmark，我们选取了由 Go 迁移到 &lt;a href="https://github.com/cloudwego/volo">Volo&lt;/a> 框架的两个业务，呈现真实的业务落地收益。&lt;/p>
+&lt;ol>
+&lt;li>&lt;strong>业务 A（Proxy 类）&lt;/strong> 。A 业务的 IO 比较多，迁移到 &lt;a href="https://github.com/cloudwego/volo">Volo&lt;/a> 框架后的各方面数据如下：&lt;/li>
+&lt;/ol>
+&lt;ul>
+&lt;li>CPU Usage 630% -&amp;gt; 380%&lt;/li>
+&lt;li>MEM 9GB -&amp;gt; 2GB&lt;/li>
+&lt;li>P99 150-200ms -&amp;gt; 20-35ms&lt;/li>
+&lt;li>AVG 4-5ms -&amp;gt; 1.5ms&lt;/li>
+&lt;/ul>
+&lt;p>可以看出不论是 CPU、内存还是延时的指标，都有非常明显的提升。下图中间红线代表 &lt;a href="https://github.com/cloudwego/volo">Volo&lt;/a> 上线的时间，也就是红线左侧这一部分是 Go 的指标，红线右侧是 Rust 的指标，左右对比可以更直观看出 &lt;a href="https://github.com/cloudwego/volo">Volo&lt;/a> 框架给业务 A 带来的收益。&lt;/p>
+&lt;p>&lt;img src="https://www.cloudwego.io/img/blog/Rust_or_Go/17.png" alt="image">&lt;/p>
+&lt;ol start="2">
+&lt;li>&lt;strong>业务 B（有大量业务逻辑）&lt;/strong> 。业务 B 是一个计算密集型的业务，使用 &lt;a href="https://github.com/cloudwego/volo">Volo&lt;/a> 框架后 CPU 400% -&amp;gt; 130%。因此在计算密集型的业务中，CPU 的提升更加明显。&lt;/li>
+&lt;/ol>
+&lt;h3 id="相关生态">相关生态&lt;/h3>
+&lt;p>随着 &lt;a href="https://github.com/cloudwego/volo">Volo&lt;/a> 框架开源，一起开源的所有生态如下：&lt;/p>
+&lt;ul>
+&lt;li>&lt;strong>Volo&lt;/strong> 是 RPC 框架的名字，包含了 Volo-Thrift 和 Volo-gRPC 两部分。&lt;/li>
+&lt;li>&lt;strong>Volo-rs 组织&lt;/strong> ：Volo 的相关生态。&lt;/li>
+&lt;li>&lt;strong>Pilota&lt;/strong> ：Volo 使用的 Thrift 与 Protobuf 编译器及编解码的纯 Rust 实现（不依赖 protoc）。&lt;/li>
+&lt;li>&lt;strong>Motore&lt;/strong> ：Volo 参考 Tower 设计的，使用了 GAT 和 TAIT 的 middleware 抽象层。&lt;/li>
+&lt;li>&lt;strong>Metainfo&lt;/strong> ：Volo 用于进行元信息透传的组件，定义了一套元信息透传的标准。&lt;/li>
+&lt;/ul>
+&lt;p>全景图如下：&lt;/p>
+&lt;p>&lt;img src="https://www.cloudwego.io/img/blog/Rust_or_Go/18.png" alt="image">&lt;/p>
+&lt;h3 id="仓库地址">仓库地址&lt;/h3>
+&lt;p>以下是所有相关生态的仓库地址。欢迎大家来提 Issue 或 PR，一起共建 &lt;a href="https://github.com/cloudwego/volo">Volo&lt;/a>！&lt;/p>
+&lt;ul>
+&lt;li>Volo：https://github.com/cloudwego/volo&lt;/li>
+&lt;li>Volo-rs：https://github.com/volo-rs&lt;/li>
+&lt;li>Pilota：https://github.com/cloudwego/pilota&lt;/li>
+&lt;li>Motore：https://github.com/cloudwego/motore&lt;/li>
+&lt;li>Metainfo：https://github.com/cloudwego/metainfo&lt;/li>
+&lt;/ul>
+&lt;h2 id="rust-语言和-go-语言如何选择">Rust 语言和 Go 语言如何选择&lt;/h2>
+&lt;p>了解 &lt;a href="https://github.com/cloudwego/volo">Volo&lt;/a> 框架后，关于 Rust 语言和 Go 如何选择的问题，我有一些主观的建议和想法。&lt;/p>
+&lt;h3 id="和-cgo-对比">和 C++、Go 对比&lt;/h3>
+&lt;p>如果 Go 的服务想用另一种语言重写，目前还是 Rust 语言和 C++ 可选性高一些，因此我将这三种语言进行对比，以期为面临选择编程语言的用户提供一些参考。&lt;/p>
+&lt;p>&lt;img src="https://www.cloudwego.io/img/blog/Rust_or_Go/19.png" alt="image">&lt;/p>
+&lt;p>&lt;strong>在学习难度方面&lt;/strong>，Rust 语言和 C++ 学习难度比较高，而 Go 语言的学习难度比较低。&lt;/p>
+&lt;p>&lt;strong>在性能方面&lt;/strong>，Rust 语言和 C++ 的性能比较高。我给 Go 语言的性能评级为中等，毕竟和 Python 这些服务相比，Go 语言还是要强很多的。&lt;/p>
+&lt;p>&lt;strong>在安全性方面&lt;/strong>，C++ 的安全性比较低，Go 语言安全性中等，Rust 语言安全性比较高。因为 Go 语言 虽然能够通过 GC 防住一些内存安全的问题，但是它没有办法防住类似 Data Race 这种并发安全的问题，
+而且大多数时候这类问题其实很难排查。Rust 能够做到可防可控，应防尽防，只要有内存安全问题或并发安全问题，都无法成功编译。&lt;/p>
+&lt;p>&lt;strong>在协作方面&lt;/strong>，Rust 语言的协作能力比较高，Go 语言和 C++ 的协作等级是中等。首先，C++ 没有官方提供的包管理工具，它必须借助第三方社区提供的包管理工具，但是不同的项目使用的包管理工具可能是不一样的，
+所以这是对用户来说非常不便的；其次，在开发者可以保证自己的代码没有 Bug、符合最佳实践的情况下，还是不可避免地会和一些第三方的库以及比较老旧社区一流的库产生交集，并且产生混用的情形；
+最后，如果涉及到大型项目，需要团队协作开发，我们无法保证团队中其他人写出的代码也不存在内存安全问题。至于 Go 语言，它的编译时及工具链的能力相对来说比较弱，因此也定级为中等。&lt;/p>
+&lt;p>&lt;strong>在特性和使用成本方面&lt;/strong>，用户应该都有所了解，不再过多赘述。从使用成本上来讲，我的评级为给 C++ 为高使用成本，Go 语言和 Rust 语言的使用成本是中等。C++ 的业务上线之后经常出状况，
+而且排查问题困难是很常见的情况。而使用 Go 语言做一些通用的编程是可以的，但是一旦涉及到定制化的需求在实现上就有一定的困难，比如需要根据不同的平台系统做系统级编程，
+使用 Go 语言做起来就非常麻烦。语言只是工具，我们还是要根据不同的场景选用更为合适的语言。&lt;/p>
+&lt;p>那么 Go 语言和 Rust 语言的使用成本为什么是中等呢？因为我们不能只关注编写代码的效率，还要考虑运维和 Debug 的成本。Go 语言可能也会产生 Panic，我们内部也经常会有一些并发的问题，然后需要不断地排查。
+而 Rust 语言前置了这部分成本，相比于其他语言框架在上线之后测试、保证稳定性，我们把这部分的时间精力用在了开发期间，这样也避免了线上事故带来的损失。因此我给 Go 语言和 Rust 语言评定的使用成本是中等。&lt;/p>
+&lt;h3 id="rust--go">Rust &amp;amp; Go&lt;/h3>
+&lt;p>如果将 Rust 语言和 Go 语言单独做对比，我们应该如何解读它们呢？这是一个非常经典的问题。可以尝试从以下四方面考虑：&lt;/p>
+&lt;ul>
+&lt;li>&lt;strong>合作关系，取长补短&lt;/strong>&lt;/li>
+&lt;/ul>
+&lt;p>我们团队认为其实二者并不是对立关系，而是合作关系，它们是取长补短的。毕竟语言只是工具，很多时候我们只是需要一个更加得心应手的工具而已。&lt;/p>
+&lt;ul>
+&lt;li>&lt;strong>(性能 &amp;raquo; 开发效率) || (安全性 &amp;raquo; 开发效率) -&amp;gt; Rust&lt;/strong>&lt;/li>
+&lt;/ul>
+&lt;p>对于需要极致性能，重计算的应用，以及需要稳定性并能接受一定开发速度损失的应用，推荐使用 Rust，Rust 在极致性能优化和安全性上的优势可以在这类应用中得以发挥。&lt;/p>
+&lt;ul>
+&lt;li>&lt;strong>迭代速度要求高 -&amp;gt; Go&lt;/strong>&lt;/li>
+&lt;/ul>
+&lt;p>对于性能不敏感的应用、重 IO 的应用以及需要快速开发快速迭代胜过稳定性的应用，推荐使用 Go 语言，这种应用使用 Rust 并不会带来明显的收益。&lt;/p>
+&lt;ul>
+&lt;li>&lt;strong>考虑团队技术储备和人才储备&lt;/strong>&lt;/li>
+&lt;/ul>
+&lt;p>当然，还有一个很重要的考虑因素，是团队现有的技术栈，即技术储备和人才储备。&lt;/p>
+&lt;h3 id="小结">小结&lt;/h3>
+&lt;p>希望以上内容能让大家初步了解 &lt;a href="https://github.com/cloudwego/volo">Volo&lt;/a> 以及相关的生态。目前 &lt;a href="https://github.com/cloudwego/volo">Volo&lt;/a> 还处于早期发展阶段，欢迎各位感兴趣的同学加入我们，共同建设 CloudWeGo 以及 Rust 开源社区。
+我们诚心期待更多开发者加入，也期待 &lt;a href="https://github.com/cloudwego/volo">Volo&lt;/a> 能够助力越来越多的企业快速构建云原生架构。&lt;/p></description></item></channel></rss>
