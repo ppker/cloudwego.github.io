@@ -144,12 +144,16 @@
 &lt;p>本版本 TTHeader Streaming 在原有的 Kitex Client 级别基础上，额外支持接口级别的 Recv 超时配置，配置更为灵活。&lt;/p>
 &lt;p>详见 &lt;a href="https://www.cloudwego.io/zh/docs/kitex/tutorials/basic-feature/streamx/streamx_timeout_control/">StreamX 流超时控制&lt;/a>。&lt;/p>
 &lt;/li>
+&lt;/ol>
+&lt;h3 id="特殊变更">&lt;strong>特殊变更&lt;/strong>&lt;/h3>
+&lt;ol>
 &lt;li>
 &lt;p>&lt;strong>Thrift 默认传输协议由 Buffered 改为 Framed&lt;/strong>&lt;/p>
-&lt;p>这个变更可以利用 FastCodec 以获得更高的编解码性能。&lt;/p>
+&lt;p>这个变更可以利用 FastCodec 以获得更高的编解码性能。因为 Kitex 服务端支持协议探测，此行为变更是兼容的，通常支持 Apache Thrift 的框架都支持 Framed，我们评估影响不大，但如果你访问的下游不支持协议探测，或不支持 Framed，请手动参考下面的方式改回 Buffered 协议：&lt;/p>
 &lt;/li>
 &lt;/ol>
-&lt;h3 id="其他">&lt;strong>其他&lt;/strong>&lt;/h3>
+&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-go" data-lang="go">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#000">cli&lt;/span> &lt;span style="color:#ce5c00;font-weight:bold">:=&lt;/span> &lt;span style="color:#000">xxx&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#000">NewClient&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#4e9a06">&amp;#34;service_name&amp;#34;&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span> &lt;span style="color:#000">client&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#000">WithTransportProtocol&lt;/span>&lt;span style="color:#000;font-weight:bold">(&lt;/span>&lt;span style="color:#000">transport&lt;/span>&lt;span style="color:#000;font-weight:bold">.&lt;/span>&lt;span style="color:#000">PurePayload&lt;/span>&lt;span style="color:#000;font-weight:bold">))&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h3 id="其他">&lt;strong>其他&lt;/strong>&lt;/h3>
 &lt;ol>
 &lt;li>
 &lt;p>产物简化&lt;/p>
