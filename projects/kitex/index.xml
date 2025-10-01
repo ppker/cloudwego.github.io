@@ -64,6 +64,106 @@
 &lt;/blockquote>
 &lt;p>Kitex will ensure compatibility with normal usage patterns of internal users. However, individual users may have dependencies on definitions in the Kitex repository, and this version adjustment of Kitex will have an impact on these users.&lt;/p>
 &lt;p>This version has made minor adjustments to non-standard usage of &lt;code>remote.Message&lt;/code>, &lt;code>rpcinfo.RPCInfo&lt;/code> or &lt;code>generic.Generic&lt;/code> interfaces. If there are special usages, they need to be adjusted to conform to the new version&amp;rsquo;s interface definition.&lt;/p>
+&lt;ol>
+&lt;li>&lt;code>rpcinfo.RPCInfo().Invocation()&lt;/code> added &lt;code>MethodInfo()&lt;/code> method, returning MethodInfo for the current RPC:&lt;/li>
+&lt;/ol>
+&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-diff" data-lang="diff">&lt;span style="display:flex;">&lt;span>commit 62979e4b95e5a5ed73d0bfd9e218cfc61c5ce253
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>type Invocation interface {
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> PackageName() string
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> ServiceName() string
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> MethodName() string
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#00a000">+ MethodInfo() serviceinfo.MethodInfo
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#00a000">&lt;/span> StreamingMode() serviceinfo.StreamingMode
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> SeqID() int32
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> BizStatusErr() kerrors.BizStatusErrorIface
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>}
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;ol start="2">
+&lt;li>&lt;code>remote.Message&lt;/code> interface removed some redundant interfaces:&lt;/li>
+&lt;/ol>
+&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-diff" data-lang="diff">&lt;span style="display:flex;">&lt;span> // Message is the core abstraction for Kitex message.
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> type Message interface {
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> RPCInfo() rpcinfo.RPCInfo
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#a40000">- ServiceInfo() *serviceinfo.ServiceInfo
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#a40000">- SpecifyServiceInfo(svcName, methodName string) (*serviceinfo.ServiceInfo, error)
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#a40000">&lt;/span> Data() interface{}
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> NewData(method string) (ok bool)
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> MessageType() MessageType
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> SetPayloadLen(size int)
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> TransInfo() TransInfo
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> Tags() map[string]interface{}
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#a40000">- ProtocolInfo() ProtocolInfo
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#a40000">- SetProtocolInfo(ProtocolInfo)
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#a40000">&lt;/span> PayloadCodec() PayloadCodec
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> SetPayloadCodec(pc PayloadCodec)
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> Recycle()
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> }
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>Dependencies on &lt;code>ProtocolInfo()&lt;/code> should be modified to rely on &lt;code>remote.Message().RPCInfo().Config().TransportProtocol()&lt;/code>.&lt;/p>
+&lt;ol start="3">
+&lt;li>&lt;code>generic.Generic&lt;/code> interface underwent significant adjustments:&lt;/li>
+&lt;/ol>
+&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-diff" data-lang="diff">&lt;span style="display:flex;">&lt;span> commit 024fedbc2da33956cd81cd0a8226f817e5eac777
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> // Generic ...
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> type Generic interface {
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> Closer
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#a40000">- // PayloadCodec return codec implement
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#a40000">- // this is used for generic which does not need IDL
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#a40000">- PayloadCodec() remote.PayloadCodec
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#a40000">&lt;/span> // PayloadCodecType return the type of codec
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> PayloadCodecType() serviceinfo.PayloadCodec
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#a40000">- // RawThriftBinaryGeneric must be framed
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#a40000">- Framed() bool
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#a40000">- // GetMethod is to get method name if needed
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#a40000">- GetMethod(req interface{}, method string) (*Method, error)
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#a40000">&lt;/span>&lt;span style="color:#00a000">+ // GenericMethod return generic method func
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#00a000">+ GenericMethod() serviceinfo.GenericMethodFunc
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#00a000">&lt;/span> // IDLServiceName returns idl service name
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> IDLServiceName() string
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#a40000">- // MessageReaderWriter returns reader and writer
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#a40000">- // this is used for generic which needs IDL
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#a40000">- MessageReaderWriter() interface{}
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#a40000">&lt;/span>&lt;span style="color:#00a000">+ // GetExtra returns extra info by key
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#00a000">+ GetExtra(key string) interface{}
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#00a000">&lt;/span> }
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;ul>
+&lt;li>The &lt;code>PayloadCodec()&lt;/code> interface was completely removed. This adjustment was made because, after Kitex generic interface supported the multi-service feature, it no longer relies on hijacking PayloadCodec to inject the generic codec; instead, it&amp;rsquo;s implemented by hijacking Args/Results structs. Currently, only &lt;code>generic.BinaryThriftGeneric()&lt;/code> relies on the old method, but this interface has been marked as deprecated. Please migrate to using &lt;code>generic.BinaryThriftGenericV2()&lt;/code>, refer to &lt;a href="https://www.cloudwego.io/docs/kitex/tutorials/advanced-feature/generic-call/basic_usage/">Generic Call User Guide&lt;/a>.&lt;/li>
+&lt;li>&lt;code>Framed() bool&lt;/code> is a deprecated interface because Kitex has defaulted to framed mode for clients since v0.13.*.&lt;/li>
+&lt;li>&lt;code>MessageReaderWriter&lt;/code> and &lt;code>GetMethod&lt;/code> interfaces are merged into a unified &lt;code>GenericMethod()&lt;/code> interface. The new unified interface returns a closure function that accepts context and method name as arguments and returns the corresponding method info. This method info includes the hijacked Args/Results parameters, thus implementing different types of generic call codec logic.&lt;/li>
+&lt;/ul>
+&lt;ol start="4">
+&lt;li>&lt;code>remote.ServiceSearcher&lt;/code> Get/Set method changes, &lt;code>codec.SetOrCheckMethodName&lt;/code> parameter adjustment:&lt;/li>
+&lt;/ol>
+&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-diff" data-lang="diff">&lt;span style="display:flex;">&lt;span>commit a1008887b9ab4553a79ce82cf6d3db324c344977
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#a40000">-const keyServiceSearcher = &amp;#34;rpc_info_service_searcher&amp;#34;
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#a40000">&lt;/span>&lt;span style="color:#00a000">+type keyServiceSearcher struct{}
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#00a000">&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#a40000">-// GetServiceSearcher returns the service searcher from rpcinfo.RPCInfo.
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#a40000">-func GetServiceSearcher(ri rpcinfo.RPCInfo) ServiceSearcher {
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#a40000">- svcInfo, _ := ri.Invocation().Extra(keyServiceSearcher).(ServiceSearcher)
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#a40000">- return svcInfo
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#a40000">&lt;/span>&lt;span style="color:#00a000">+// GetServiceSearcher returns the service searcher from context.
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#00a000">+func GetServiceSearcher(ctx context.Context) ServiceSearcher {
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#00a000">+ svcSearcher, _ := ctx.Value(keyServiceSearcher{}).(ServiceSearcher)
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#00a000">+ return svcSearcher
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#00a000">&lt;/span> }
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#a40000">-// SetServiceSearcher sets the service searcher to rpcinfo.RPCInfo.
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#a40000">-func SetServiceSearcher(ri rpcinfo.RPCInfo, svcSearcher ServiceSearcher) {
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#a40000">- setter := ri.Invocation().(rpcinfo.InvocationSetter)
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#a40000">- setter.SetExtra(keyServiceSearcher, svcSearcher)
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#a40000">&lt;/span>&lt;span style="color:#00a000">+// WithServiceSearcher sets the service searcher to context.
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#00a000">+func WithServiceSearcher(ctx context.Context, svcSearcher ServiceSearcher) context.Context {
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#00a000">+ return context.WithValue(ctx, keyServiceSearcher{}, svcSearcher)
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#00a000">&lt;/span> }
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;ul>
+&lt;li>The old version set &lt;code>ServiceSearcher&lt;/code> on rpcinfo; the new version moves it to context to optimize Get/Set performance.&lt;/li>
+&lt;/ul>
+&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-diff" data-lang="diff">&lt;span style="display:flex;">&lt;span>commit a1008887b9ab4553a79ce82cf6d3db324c344977
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>// SetOrCheckMethodName is used to set method name to invocation.
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#a40000">-func SetOrCheckMethodName(methodName string, message remote.Message) error {
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#a40000">&lt;/span>&lt;span style="color:#00a000">+func SetOrCheckMethodName(ctx context.Context, methodName string, message remote.Message) error {
+&lt;/span>&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;ul>
+&lt;li>This simultaneously affects the definition of &lt;code>codec.SetOrCheckMethodName&lt;/code>, adding &lt;code>context.Context&lt;/code> as a parameter.&lt;/li>
+&lt;/ul>
 &lt;h2 id="full-change">&lt;strong>Full Change&lt;/strong>&lt;/h2>
 &lt;h3 id="feature">Feature&lt;/h3>
 &lt;ul>

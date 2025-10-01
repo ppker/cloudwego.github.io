@@ -64,6 +64,107 @@
 &lt;/blockquote>
 &lt;p>Kitex 会保证内部用户正常使用方式的兼容性。但个别用户可能对 Kitex 仓库的定义有依赖，Kitex 本次版本调整对这部分用户有影响。&lt;/p>
 &lt;p>本版本对 &lt;code>remote.Message&lt;/code>、&lt;code>rpcinfo.RPCInfo&lt;/code> 或 &lt;code>generic.Generic&lt;/code> 接口非普通使用方式做了微调，如果有特殊的使用需要调整至符合新版本的接口定义。&lt;/p>
+&lt;ol>
+&lt;li>&lt;code>rpcinfo.RPCInfo().Invocation()&lt;/code> 新增了 &lt;code>MethodInfo()&lt;/code> 方法，返回当前 rpc 的 MethodInfo：&lt;/li>
+&lt;/ol>
+&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-diff" data-lang="diff">&lt;span style="display:flex;">&lt;span>commit 62979e4b95e5a5ed73d0bfd9e218cfc61c5ce253
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>type Invocation interface {
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> PackageName() string
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> ServiceName() string
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> MethodName() string
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#00a000">+ MethodInfo() serviceinfo.MethodInfo
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#00a000">&lt;/span> StreamingMode() serviceinfo.StreamingMode
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> SeqID() int32
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> BizStatusErr() kerrors.BizStatusErrorIface
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>}
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;ol start="2">
+&lt;li>&lt;code>remote.Message&lt;/code> 接口删除了部分冗余接口：&lt;/li>
+&lt;/ol>
+&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-diff" data-lang="diff">&lt;span style="display:flex;">&lt;span> // Message is the core abstraction for Kitex message.
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> type Message interface {
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> RPCInfo() rpcinfo.RPCInfo
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#a40000">- ServiceInfo() *serviceinfo.ServiceInfo
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#a40000">- SpecifyServiceInfo(svcName, methodName string) (*serviceinfo.ServiceInfo, error)
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#a40000">&lt;/span> Data() interface{}
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> NewData(method string) (ok bool)
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> MessageType() MessageType
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> SetPayloadLen(size int)
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> TransInfo() TransInfo
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> Tags() map[string]interface{}
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#a40000">- ProtocolInfo() ProtocolInfo
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#a40000">- SetProtocolInfo(ProtocolInfo)
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#a40000">&lt;/span> PayloadCodec() PayloadCodec
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> SetPayloadCodec(pc PayloadCodec)
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> Recycle()
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> }
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>对 &lt;code>ProtocolInfo()&lt;/code> 接口的依赖请修改为依赖 &lt;code>remote.Message().RPCInfo().Config().TransportProtocol()&lt;/code>。&lt;/p>
+&lt;ol start="3">
+&lt;li>&lt;code>generic.Generic&lt;/code> 接口做了大幅调整：&lt;/li>
+&lt;/ol>
+&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-diff" data-lang="diff">&lt;span style="display:flex;">&lt;span> commit 024fedbc2da33956cd81cd0a8226f817e5eac777
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> // Generic ...
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> type Generic interface {
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> Closer
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#a40000">- // PayloadCodec return codec implement
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#a40000">- // this is used for generic which does not need IDL
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#a40000">- PayloadCodec() remote.PayloadCodec
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#a40000">&lt;/span> // PayloadCodecType return the type of codec
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> PayloadCodecType() serviceinfo.PayloadCodec
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#a40000">- // RawThriftBinaryGeneric must be framed
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#a40000">- Framed() bool
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#a40000">- // GetMethod is to get method name if needed
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#a40000">- GetMethod(req interface{}, method string) (*Method, error)
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#a40000">&lt;/span>&lt;span style="color:#00a000">+ // GenericMethod return generic method func
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#00a000">+ GenericMethod() serviceinfo.GenericMethodFunc
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#00a000">&lt;/span> // IDLServiceName returns idl service name
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> IDLServiceName() string
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#a40000">- // MessageReaderWriter returns reader and writer
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#a40000">- // this is used for generic which needs IDL
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#a40000">- MessageReaderWriter() interface{}
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#a40000">&lt;/span>&lt;span style="color:#00a000">+ // GetExtra returns extra info by key
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#00a000">+ GetExtra(key string) interface{}
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#00a000">&lt;/span> }
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;ul>
+&lt;li>完全删除了 &lt;code>PayloadCodec()&lt;/code> 接口，这一调整是因为 kitex generic 接口支持了 multi service 功能后，已经不再依赖此接口劫持 PayloadCodec 的方式注入泛化编解码器，而是通过劫持 Args/Results 结构体实现。当前仅 &lt;code>generic.BinaryThriftGeneric()&lt;/code> 接口依赖此方式，但该接口已经标注为废弃，请迁移至使用 &lt;code>generic.BinaryThriftGenericV2()&lt;/code>，参考 &lt;a href="https://www.cloudwego.io/zh/docs/kitex/tutorials/advanced-feature/generic-call/basic_usage">泛化调用使用指南&lt;/a>&lt;/li>
+&lt;li>&lt;code>Framed() bool&lt;/code> 是废弃接口，因为 kitex 自 v0.13.* 开始已经默认对 client 启用 framed；&lt;/li>
+&lt;li>&lt;code>MessageReaderWriter&lt;/code> 和 &lt;code>GetMethod&lt;/code> 接口整合为一个统一的 &lt;code>GenericMethod()&lt;/code> 接口。统一后的新接口返回一个闭包函数，该函数接受 context 和 method name 入参，返回对应的 method info，其中 metainfo info 就包含了劫持的 Args/Results 参数，从而实现不同类型的泛化调用编解码逻辑。&lt;/li>
+&lt;/ul>
+&lt;ol start="4">
+&lt;li>&lt;code>remote.ServiceSearcher&lt;/code> 的 Get/Set 方式变更，&lt;code>codec.SetOrCheckMethodName&lt;/code> 参数调整：&lt;/li>
+&lt;/ol>
+&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-diff" data-lang="diff">&lt;span style="display:flex;">&lt;span>commit a1008887b9ab4553a79ce82cf6d3db324c344977
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#a40000">-const keyServiceSearcher = &amp;#34;rpc_info_service_searcher&amp;#34;
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#a40000">&lt;/span>&lt;span style="color:#00a000">+type keyServiceSearcher struct{}
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#00a000">&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#a40000">-// GetServiceSearcher returns the service searcher from rpcinfo.RPCInfo.
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#a40000">-func GetServiceSearcher(ri rpcinfo.RPCInfo) ServiceSearcher {
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#a40000">- svcInfo, _ := ri.Invocation().Extra(keyServiceSearcher).(ServiceSearcher)
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#a40000">- return svcInfo
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#a40000">&lt;/span>&lt;span style="color:#00a000">+// GetServiceSearcher returns the service searcher from context.
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#00a000">+func GetServiceSearcher(ctx context.Context) ServiceSearcher {
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#00a000">+ svcSearcher, _ := ctx.Value(keyServiceSearcher{}).(ServiceSearcher)
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#00a000">+ return svcSearcher
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#00a000">&lt;/span> }
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#a40000">-// SetServiceSearcher sets the service searcher to rpcinfo.RPCInfo.
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#a40000">-func SetServiceSearcher(ri rpcinfo.RPCInfo, svcSearcher ServiceSearcher) {
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#a40000">- setter := ri.Invocation().(rpcinfo.InvocationSetter)
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#a40000">- setter.SetExtra(keyServiceSearcher, svcSearcher)
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#a40000">&lt;/span>&lt;span style="color:#00a000">+// WithServiceSearcher sets the service searcher to context.
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#00a000">+func WithServiceSearcher(ctx context.Context, svcSearcher ServiceSearcher) context.Context {
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#00a000">+ return context.WithValue(ctx, keyServiceSearcher{}, svcSearcher)
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#00a000">&lt;/span> }
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;ul>
+&lt;li>旧版本将 &lt;code>ServiceSearcher&lt;/code> 设置在 rpcinfo，新版本为优化 Get/Set 的性能将其设置到 context。&lt;/li>
+&lt;/ul>
+&lt;div class="highlight">&lt;pre tabindex="0" style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-diff" data-lang="diff">&lt;span style="display:flex;">&lt;span>commit a1008887b9ab4553a79ce82cf6d3db324c344977
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>// SetOrCheckMethodName is used to set method name to invocation.
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#a40000">-func SetOrCheckMethodName(methodName string, message remote.Message) error {
+&lt;/span>&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#a40000">&lt;/span>&lt;span style="color:#00a000">+func SetOrCheckMethodName(ctx context.Context, methodName string, message remote.Message) error {
+&lt;/span>&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;ul>
+&lt;li>同时影响到 &lt;code>codec.SetOrCheckMethodName&lt;/code> 的定义，添加 &lt;code>context.Context&lt;/code> 作为入参。
+`&lt;/li>
+&lt;/ul>
 &lt;h2 id="详细变更">&lt;strong>详细变更&lt;/strong>&lt;/h2>
 &lt;h3 id="feature">Feature&lt;/h3>
 &lt;ul>
