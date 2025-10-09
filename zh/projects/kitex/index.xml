@@ -7,6 +7,7 @@
 &lt;li>暂时不影响 Go v1.18/v1.19 编译，但声明到高版本后，后续版本会引入高版本特性&lt;/li>
 &lt;/ul>
 &lt;/li>
+&lt;li>&lt;strong>部分接口调整&lt;/strong>：对普通使用的用户无影响，但如果有扩展或特殊依赖会有影响，详见[&lt;strong>特殊变更&lt;/strong>]部分&lt;/li>
 &lt;/ol>
 &lt;h3 id="新特性">&lt;strong>新特性&lt;/strong>&lt;/h3>
 &lt;ol>
@@ -26,7 +27,7 @@
 &lt;p>&lt;strong>TTHeader Streaming：支持 ctx cancel 控制流生命周期&lt;/strong>&lt;/p>
 &lt;ul>
 &lt;li>快速结束流式调用，节省模型资源&lt;/li>
-&lt;li>对齐 gPRC，详细用法见&lt;a href="https://www.cloudwego.io/zh/docs/kitex/tutorials/basic-feature/streamx/StreamX_Lifecycle_Control">流生命周期控制最佳实践&lt;/a>&lt;/li>
+&lt;li>对齐 gPRC，详细用法见&lt;a href="https://www.cloudwego.io/zh/docs/kitex/tutorials/basic-feature/streamx/streamx_lifecycle_control">流生命周期控制最佳实践&lt;/a>&lt;/li>
 &lt;li>支持 Client 主动调用 cancel 结束流式调用&lt;/li>
 &lt;li>支持 Client 感知所处 Handler 的 ctx cancel 信号，级联结束流式调用&lt;/li>
 &lt;/ul>
@@ -34,7 +35,7 @@
 &lt;li>
 &lt;p>&lt;strong>流式错误处理优化&lt;/strong>&lt;/p>
 &lt;ul>
-&lt;li>快速对应具体错误场景，加速级联 cancel 链路问题排查，详情见&lt;a href="https://www.cloudwego.io/zh/docs/kitex/tutorials/basic-feature/streamx/StreamX_Error_Handling">流错误处理最佳实践&lt;/a>&lt;/li>
+&lt;li>快速对应具体错误场景，加速级联 cancel 链路问题排查，详情见&lt;a href="https://www.cloudwego.io/zh/docs/kitex/tutorials/basic-feature/streamx/streamx_error_handling">流错误处理最佳实践&lt;/a>&lt;/li>
 &lt;li>级联 cancel 场景，错误描述包含完整 cancel 链路，快速定位主动 cancel 的第一跳服务&lt;/li>
 &lt;li>错误描述包含具体的错误场景，以及与之唯一对应的错误码&lt;/li>
 &lt;li>统一方便的 cancel 错误处理方式，无需使用繁琐的字符串匹配&lt;/li>

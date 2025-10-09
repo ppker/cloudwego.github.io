@@ -7,6 +7,7 @@
 &lt;li>Currently does not affect Go v1.18/v1.19 compilation, but after being declared for higher versions, subsequent versions will introduce features of higher versions&lt;/li>
 &lt;/ul>
 &lt;/li>
+&lt;li>&lt;strong>Breaking Change for Partial interfaces&lt;/strong>: No impact on regular users, but may affect those with extensions or special api dependencies. For details, refer to the [&lt;strong>Special Changes&lt;/strong>] section.&lt;/li>
 &lt;/ol>
 &lt;h3 id="new-features">&lt;strong>New Features&lt;/strong>&lt;/h3>
 &lt;ol>
