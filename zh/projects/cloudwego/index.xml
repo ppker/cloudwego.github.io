@@ -271,16 +271,16 @@ CloudWeGo 下的项目主要有三个特点：&lt;strong&gt;高性能&lt;/strong
 &lt;p&gt;CloudWeGo 是字节跳动基础架构团队开源出来的项目，它是一套可快速构建&lt;strong&gt;企业级&lt;/strong&gt;云原生架构的中间件集合，它专注于微服务通信与治理，具备&lt;strong&gt;高性能&lt;/strong&gt;、&lt;strong&gt;可扩展&lt;/strong&gt;、&lt;strong&gt;高可靠&lt;/strong&gt;的特点，且关注&lt;strong&gt;易用性&lt;/strong&gt;。&lt;/p&gt;
 &lt;p&gt;CloudWeGo 在第一阶段开源了四个项目：&lt;/p&gt;
 &lt;ul&gt;
-&lt;li&gt;&lt;a href="https://github.com/cloudwego/kitex"&gt;Kitex&lt;/a&gt;：高性能、强可扩展的 Golang RPC 框架&lt;/li&gt;
+&lt;li&gt;&lt;a href="https://github.com/cloudwego/kitex"&gt;Kitex&lt;/a&gt;：高性能、强可扩展的 Go RPC 框架&lt;/li&gt;
 &lt;li&gt;&lt;a href="https://github.com/cloudwego/netpoll"&gt;Netpoll&lt;/a&gt;：高性能、I/O 非阻塞、专注于 RPC 场景的网络框架&lt;/li&gt;
-&lt;li&gt;&lt;a href="https://github.com/cloudwego/thriftgo"&gt;Thriftgo&lt;/a&gt;：Golang 实现的 thrift 编译器，支持插件机制和语义检查&lt;/li&gt;
+&lt;li&gt;&lt;a href="https://github.com/cloudwego/thriftgo"&gt;Thriftgo&lt;/a&gt;：Go 实现的 thrift 编译器，支持插件机制和语义检查&lt;/li&gt;
 &lt;li&gt;Netpoll-http2：基于 &lt;a href="https://github.com/cloudwego/netpoll"&gt;Netpoll&lt;/a&gt; 的 HTTP/2 实现&lt;/li&gt;
 &lt;/ul&gt;
 &lt;p&gt;除了这几个主要项目外，CloudWeGo 紧随其后陆续开源了 &lt;a href="https://github.com/cloudwego/kitex-benchmark"&gt;&lt;strong&gt;Kitex-benchmark&lt;/strong&gt;&lt;/a&gt;、&lt;a href="https://github.com/cloudwego/netpoll-benchmark"&gt;&lt;strong&gt;Netpoll-benchmark&lt;/strong&gt;&lt;/a&gt;、
 &lt;a href="https://github.com/cloudwego/thrift-gen-validator"&gt;&lt;strong&gt;Thrift-gen-validator&lt;/strong&gt;&lt;/a&gt;、&lt;a href="https://github.com/cloudwego/kitex-examples"&gt;&lt;strong&gt;Kitex-examples&lt;/strong&gt;&lt;/a&gt; 、&lt;a href="https://github.com/cloudwego/netpoll-examples"&gt;&lt;strong&gt;Netpoll-examples&lt;/strong&gt;&lt;/a&gt;等项目。&lt;/p&gt;
 &lt;p&gt;鉴于文章篇幅有限，下文将重点介绍 CloudWeGo 核心项目 &lt;a href="https://github.com/cloudwego/kitex"&gt;Kitex&lt;/a&gt;。&lt;/p&gt;
-&lt;p&gt;从&lt;strong&gt;演进历史&lt;/strong&gt;来看，2014 年，字节跳动技术团队引入 Golang 解决长连接推送业务面临的高并发问题，两年后，内部技术团队基于 Golang 推出了一个名为 Kite 的框架，同时对开源项目 Gin 做了一层很薄的封装，推出了 Ginex。
-这两个框架极大推动了 Golang 在公司内部的应用。此后，围绕性能和可扩展性设计，字节跳动重构 Kite，并在次年 10 月完成并发布 Kitex，投入到内部应用中。据悉，截至 2021 年 9 月，线上有 3w+ 微服务使用 Kitex，大部分服务迁移新框架后可以收获 CPU 和延迟上的收益。&lt;/p&gt;
+&lt;p&gt;从&lt;strong&gt;演进历史&lt;/strong&gt;来看，2014 年，字节跳动技术团队引入 Go 解决长连接推送业务面临的高并发问题，两年后，内部技术团队基于 Go 推出了一个名为 Kite 的框架，同时对开源项目 Gin 做了一层很薄的封装，推出了 Ginex。
+这两个框架极大推动了 Go 在公司内部的应用。此后，围绕性能和可扩展性设计，字节跳动重构 Kite，并在次年 10 月完成并发布 Kitex，投入到内部应用中。据悉，截至 2021 年 9 月，线上有 3w+ 微服务使用 Kitex，大部分服务迁移新框架后可以收获 CPU 和延迟上的收益。&lt;/p&gt;
 &lt;p&gt;&lt;img src="https://www.cloudwego.io/img/blog/Microservices_Open_CloudWeGo/Framework.PNG" alt="image"&gt;&lt;/p&gt;
 &lt;p&gt;从&lt;strong&gt;架构&lt;/strong&gt;上看，&lt;a href="https://github.com/cloudwego/kitex"&gt;Kitex&lt;/a&gt; 主要分为两部分。其中 Kitex Core 是它的的主干逻辑，定义了框架的层次结构、接口，还有接口的默认实现。
 最上面 Client 和 Server 是对用户暴露的，包含 Option 配置以及其初始化的逻辑；中间的 Modules 模块是框架治理层面的功能模块和交互元信息，而 Remote 模块是与对端交互的模块，包括编解码和网络通信。
@@ -370,7 +370,7 @@ CloudWeGo 下的项目主要有三个特点：&lt;strong&gt;高性能&lt;/strong
 &lt;p&gt;&lt;strong&gt;服务网格（Service Mesh）&lt;/strong&gt; 是将无侵入服务治理定义的更为深入的微服务架构方案，被称为第二代微服务架构。通过将微服务治理能力以独立组件（Sidecar）整合并下沉到基础设施，服务网格可以实现应用业务逻辑与服务治理逻辑完全分离，这也使支持&lt;strong&gt;多语言&lt;/strong&gt;、&lt;strong&gt;热升级&lt;/strong&gt;等高阶特性变得顺理成章。&lt;/p&gt;
 &lt;p&gt;&lt;img src="https://www.cloudwego.io/img/blog/Microservices_Open_CloudWeGo/Service_Mesh.png" alt="image"&gt;&lt;/p&gt;
 &lt;p&gt;进入云原生时代，随着服务网格技术的逐步发展，我们也要用发展的眼光进行架构规划和设计，微服务框架和服务网格未来必定会是并存的，统一组成服务治理体系。
-在字节跳动，服务治理体系就是由服务框架和服务治理组成。以 Golang 服务为例，CloudWeGo 提供业务强相关、强侵入的服务治理，
+在字节跳动，服务治理体系就是由服务框架和服务治理组成。以 Go 服务为例，CloudWeGo 提供业务强相关、强侵入的服务治理，
 字节 Service Mesh 提供业务弱相关、弱侵入的服务治理，相互搭配，相互协商，既解决了业务开发所需的脚手架和开发模式，又让服务治理的接入更加容易。&lt;/p&gt;
 &lt;p&gt;与此同时，在服务网格和服务框架同时使用的场景下，服务框架必须要支持灵活卸载治理能力，服务网格也需要保证功能的稳定性。在未来技术的演进方向上，服务框架也主要专注于编解码、通信效率、多协议支持等方面，而服务网格则可以深入更多无侵入的服务治理功能研发中。&lt;/p&gt;
 &lt;p&gt;此外，在大规模场景下，针对服务治理新功能的研发需求决策，我们往往还需要考虑以下因素：&lt;/p&gt;
@@ -434,11 +434,11 @@ CloudWeGo 下的项目主要有三个特点：&lt;strong&gt;高性能&lt;/strong
 &lt;p&gt;字节跳动微服务架构师，CloudWeGo 开源负责人。CloudWeGo 是一套由字节跳动开源的、可快速构建企业级云原生架构的中间件集合，专注于解决微服务通信与治理的难题，具备高性能、可扩展、高可靠的特点。&lt;/p&gt;
 &lt;p&gt;微服务技术发展至今，业界涌现出一大批微服务开发框架、技术和最佳实践。这个多样化是不可避免的，没有一个微服务开发框架能够统一所有的语言，但是微服务架构里面所涉及的服务治理体系，却可以做到统一和规范化。NextArch 微服务 SIG 正是在这样的背景下诞生了，旨在提供统一服务治理体系，解决共性问题，将促进微服务框架和技术的进一步演进和发展。&lt;/p&gt;</description></item><item><title>Blog: 一文了解字节跳动微服务中间件 CloudWeGo</title><link>https://www.cloudwego.io/zh/blog/2022/03/28/%E4%B8%80%E6%96%87%E4%BA%86%E8%A7%A3%E5%AD%97%E8%8A%82%E8%B7%B3%E5%8A%A8%E5%BE%AE%E6%9C%8D%E5%8A%A1%E4%B8%AD%E9%97%B4%E4%BB%B6-cloudwego/</link><pubDate>Mon, 28 Mar 2022 00:00:00 +0000</pubDate><guid>https://www.cloudwego.io/zh/blog/2022/03/28/%E4%B8%80%E6%96%87%E4%BA%86%E8%A7%A3%E5%AD%97%E8%8A%82%E8%B7%B3%E5%8A%A8%E5%BE%AE%E6%9C%8D%E5%8A%A1%E4%B8%AD%E9%97%B4%E4%BB%B6-cloudwego/</guid><description>
 &lt;p&gt;云原生时代，各行各业的基础架构都在经历微服务架构转型，研发效率和稳定性是所有互联网公司需要考虑的问题。开发者想要搭建微服务，离不开配套的微服务治理，如治理平台、监控、链路跟踪、注册/发现、配置中心、服务网格等。
-随着 Golang 逐渐成为云原生时代的主要编程语言，基于 Golang 的微服务中间件在开源社区有着较强的诉求。&lt;/p&gt;
-&lt;p&gt;字节跳动也同样面临这些问题。2014 年，字节跳动引入 Golang 解决长连接推送业务面临的高并发问题，两年后，内部技术团队基于 Golang 推出了一个名为 Kite 的框架，
-同时对开源项目 Gin 做了一层很薄的封装，推出了 Ginex。字节跳动基础架构/服务框架团队负责人成国柱在 QCon 2021 的分享中表示，这两个原始框架的推出，极大推动了 Golang 在公司内部的应用。&lt;/p&gt;
+随着 Go 逐渐成为云原生时代的主要编程语言，基于 Go 的微服务中间件在开源社区有着较强的诉求。&lt;/p&gt;
+&lt;p&gt;字节跳动也同样面临这些问题。2014 年，字节跳动引入 Go 解决长连接推送业务面临的高并发问题，两年后，内部技术团队基于 Go 推出了一个名为 Kite 的框架，
+同时对开源项目 Gin 做了一层很薄的封装，推出了 Ginex。字节跳动基础架构/服务框架团队负责人成国柱在 QCon 2021 的分享中表示，这两个原始框架的推出，极大推动了 Go 在公司内部的应用。&lt;/p&gt;
 &lt;p&gt;但是由于关联技术迭代和业务诉求增加，深度耦合的 Kite 和 Thrift ，很难从网络模型或编解码层面改造优化，继续支持新特性势必会造成代码臃肿、迭代受阻问题。
-2019 年下半年，字节跳动技术团队开始重新设计 Golang RPC 框架，同时为了在网络通信上有更好的性能并能支持连接多路复用、感知连接状态，自研了网络库 &lt;a href="https://github.com/cloudwego/netpoll"&gt;Netpoll&lt;/a&gt;。&lt;/p&gt;
+2019 年下半年，字节跳动技术团队开始重新设计 Go RPC 框架，同时为了在网络通信上有更好的性能并能支持连接多路复用、感知连接状态，自研了网络库 &lt;a href="https://github.com/cloudwego/netpoll"&gt;Netpoll&lt;/a&gt;。&lt;/p&gt;
 &lt;p&gt;字节跳动重构 Kite 为 &lt;a href="https://github.com/cloudwego/kitex"&gt;Kitex&lt;/a&gt; ，围绕性能和可扩展性设计，并在次年 10 月完成发布，投入到内部应用中。
 据悉，截至 2021 年 9 月，线上有 3w+ 微服务使用 &lt;a href="https://github.com/cloudwego/kitex"&gt;Kitex&lt;/a&gt;，大部分服务迁移新框架后可以收获 CPU 和延迟上的收益。&lt;/p&gt;
 &lt;p&gt;“在 &lt;a href="https://github.com/cloudwego/kitex"&gt;Kitex&lt;/a&gt; 得到内部广泛使用后，我们决定围绕微服务逐步把我们的实践开源出去，并且对外保持统一。
@@ -486,20 +486,20 @@ CloudWeGo 下的项目主要有三个特点：&lt;strong&gt;高性能&lt;/strong
 &lt;p&gt;&lt;strong&gt;原文链接:&lt;/strong&gt; &lt;a href="https://www.infoq.cn/article/9ixlu4kjapg3ufhymm3j"&gt;https://www.infoq.cn/article/9ixlu4kjapg3ufhymm3j&lt;/a&gt;&lt;/p&gt;</description></item><item><title>Blog: 字节跳动开源内部微服务中间件 CloudWeGo</title><link>https://www.cloudwego.io/zh/blog/2021/09/07/%E5%AD%97%E8%8A%82%E8%B7%B3%E5%8A%A8%E5%BC%80%E6%BA%90%E5%86%85%E9%83%A8%E5%BE%AE%E6%9C%8D%E5%8A%A1%E4%B8%AD%E9%97%B4%E4%BB%B6-cloudwego/</link><pubDate>Tue, 07 Sep 2021 00:00:00 +0000</pubDate><guid>https://www.cloudwego.io/zh/blog/2021/09/07/%E5%AD%97%E8%8A%82%E8%B7%B3%E5%8A%A8%E5%BC%80%E6%BA%90%E5%86%85%E9%83%A8%E5%BE%AE%E6%9C%8D%E5%8A%A1%E4%B8%AD%E9%97%B4%E4%BB%B6-cloudwego/</guid><description>
 &lt;h2 id="开源背景"&gt;开源背景&lt;/h2&gt;
 &lt;p&gt;&lt;a href="https://github.com/cloudwego"&gt;CloudWeGo&lt;/a&gt; 是一套由字节跳动开源的、以 Go 语言为核心的、可快速构建企业级云原生架构的中间件集合，专注于微服务通信与治理，具备高性能、可扩展、高可靠的特点。&lt;/p&gt;
-&lt;p&gt;字节跳动内部使用 Golang 作为主要的业务开发语言，我们支持着数万个 Golang 微服务的可靠通信，经过数量众多的微服务和海量流量的验证，我们已经有了较为成熟的微服务最佳实践，于是考虑将内部的实践开源出去丰富社区生态。
+&lt;p&gt;字节跳动内部使用 Go 作为主要的业务开发语言，我们支持着数万个 Go 微服务的可靠通信，经过数量众多的微服务和海量流量的验证，我们已经有了较为成熟的微服务最佳实践，于是考虑将内部的实践开源出去丰富社区生态。
 但微服务相关的项目较多，每个项目单独开源对外部用户并不友好，为了更好地让大家聚焦于微服务，我们以 CloudWeGo 作为项目名，逐步将内部微服务体系的项目开源，内外统一使用开源库，各项目以开源库为主进行迭代。&lt;/p&gt;
 &lt;p&gt;内外维护一套代码，统一迭代演进，是我们开源前明确的原则，但毕竟涉及到代码库的调整，我们要保证内部用户尽可能无感知的迁移到开源库，本着对内部和开源用户负责的态度，我们要先确认内部可以平滑过渡，所以开源时并未对外宣传。
 让我们欣慰的是，在未宣传的情况下，一个月内 &lt;a href="https://github.com/cloudwego/kitex"&gt;Kitex&lt;/a&gt; 收获了 1.2k stars，&lt;a href="https://github.com/cloudwego/netpoll"&gt;Netpoll&lt;/a&gt; 收获了 700+ stars。&lt;/p&gt;
 &lt;p&gt;CloudWeGo 不仅仅是一个对外的开源项目，也是一个真实的超大规模企业级实践项目。&lt;/p&gt;
-&lt;p&gt;我们希望通过 CloudWeGo 丰富云原生社区的 Golang 产品体系，助力其他企业快速构建云原生架构，也希望吸引外部开发者共建，促进面向多元场景支持的演进，丰富产品能力。&lt;/p&gt;
-&lt;p&gt;因为 CloudWeGo 下的项目会依赖很多内部的基础工具库，我们也推动将内部常用的 Golang 基础工具库开源出去，统一在 &lt;a href="https://github.com/bytedance/gopkg"&gt;bytedance/gopkg&lt;/a&gt; 维护。&lt;/p&gt;
+&lt;p&gt;我们希望通过 CloudWeGo 丰富云原生社区的 Go 产品体系，助力其他企业快速构建云原生架构，也希望吸引外部开发者共建，促进面向多元场景支持的演进，丰富产品能力。&lt;/p&gt;
+&lt;p&gt;因为 CloudWeGo 下的项目会依赖很多内部的基础工具库，我们也推动将内部常用的 Go 基础工具库开源出去，统一在 &lt;a href="https://github.com/bytedance/gopkg"&gt;bytedance/gopkg&lt;/a&gt; 维护。&lt;/p&gt;
 &lt;h2 id="cloudwego-开源项目"&gt;CloudWeGo 开源项目&lt;/h2&gt;
 &lt;p&gt;CloudWeGo 第一批以 &lt;a href="https://github.com/cloudwego/kitex"&gt;Kitex&lt;/a&gt; RPC 框架和 &lt;a href="https://github.com/cloudwego/netpoll"&gt;Netpoll&lt;/a&gt; 网络库为主开源四个项目。&lt;a href="https://github.com/cloudwego/kitex"&gt;Kitex&lt;/a&gt; 和 &lt;a href="https://github.com/cloudwego/netpoll"&gt;Netpoll&lt;/a&gt; 开源前我们发布过两篇文章 &lt;a href="https://mp.weixin.qq.com/s/Xoaoiotl7ZQoG2iXo9_DWg"&gt;字节跳动 Go RPC 框架 Kitex 性能优化实践&lt;/a&gt;
 和 &lt;a href="https://mp.weixin.qq.com/s?__biz=MzI1MzYzMjE0MQ==&amp;amp;mid=2247485756&amp;amp;idx=1&amp;amp;sn=4d2712e4bfb9be27a790fa15159a7be1&amp;amp;chksm=e9d0c2dedea74bc8179af39888a5b2b99266587cad32744ad11092b91ec2e2babc74e69090e6&amp;amp;scene=21#wechat_redirect"&gt;字节跳动在 Go 网络库上的实践&lt;/a&gt;
 分享我们的实践，文章发布后大家都在关注我们什么时候开源，因为我们希望将成熟的实践开源出去，所以没有过早的推动开源。&lt;/p&gt;
 &lt;h3 id="kitex"&gt;Kitex&lt;/h3&gt;
-&lt;p&gt;&lt;a href="https://github.com/cloudwego/kitex"&gt;Kitex&lt;/a&gt; 是字节跳动内部的 Golang 微服务 RPC 框架，具有高性能、强可扩展的主要特点。在 &lt;a href="https://github.com/cloudwego/kitex"&gt;Kitex&lt;/a&gt; 之前内部的 Golang 框架是 Kite，但 Kite 与 Thrift 深度耦合、生成代码逻辑重，
-很难从网络模型或编解码层面改造优化，继续支持新特性势必会造成代码越发臃肿迭代受阻问题，于是我们针对曾经的痛点设计了新的框架 &lt;a href="https://github.com/cloudwego/kitex"&gt;Kitex&lt;/a&gt;。虽然 &lt;a href="https://github.com/cloudwego/kitex"&gt;Kitex&lt;/a&gt; 是新框架，但已经在线上应用一年多，目前字节内部超过 50% 的 Golang 微服务使用 &lt;a href="https://github.com/cloudwego/kitex"&gt;Kitex&lt;/a&gt;。&lt;/p&gt;
+&lt;p&gt;&lt;a href="https://github.com/cloudwego/kitex"&gt;Kitex&lt;/a&gt; 是字节跳动内部的 Go 微服务 RPC 框架，具有高性能、强可扩展的主要特点。在 &lt;a href="https://github.com/cloudwego/kitex"&gt;Kitex&lt;/a&gt; 之前内部的 Go 框架是 Kite，但 Kite 与 Thrift 深度耦合、生成代码逻辑重，
+很难从网络模型或编解码层面改造优化，继续支持新特性势必会造成代码越发臃肿迭代受阻问题，于是我们针对曾经的痛点设计了新的框架 &lt;a href="https://github.com/cloudwego/kitex"&gt;Kitex&lt;/a&gt;。虽然 &lt;a href="https://github.com/cloudwego/kitex"&gt;Kitex&lt;/a&gt; 是新框架，但已经在线上应用一年多，目前字节内部超过 50% 的 Go 微服务使用 &lt;a href="https://github.com/cloudwego/kitex"&gt;Kitex&lt;/a&gt;。&lt;/p&gt;
 &lt;p&gt;以下简述 &lt;a href="https://github.com/cloudwego/kitex"&gt;Kitex&lt;/a&gt; 的一些特性：&lt;/p&gt;
 &lt;ul&gt;
 &lt;li&gt;
@@ -525,7 +525,7 @@ CloudWeGo 下的项目主要有三个特点：&lt;strong&gt;高性能&lt;/strong
 &lt;/li&gt;
 &lt;/ul&gt;
 &lt;h3 id="netpoll"&gt;Netpoll&lt;/h3&gt;
-&lt;p&gt;&lt;a href="https://github.com/cloudwego/netpoll"&gt;Netpoll&lt;/a&gt; 是字节跳动内部的 Golang 高性能、I/O 非阻塞的网络库，专注于 RPC 场景。&lt;/p&gt;
+&lt;p&gt;&lt;a href="https://github.com/cloudwego/netpoll"&gt;Netpoll&lt;/a&gt; 是字节跳动内部的 Go 高性能、I/O 非阻塞的网络库，专注于 RPC 场景。&lt;/p&gt;
 &lt;p&gt;RPC 通常有较重的处理逻辑（业务逻辑、编解码），耗时长，不能像 Redis 一样采用串行处理(必须异步)。而 Go 的标准库 net 设计了 BIO(Blocking I/O) 模式的 API，
 为了保证异步处理，RPC 框架设计上需要为每个连接都分配一个 goroutine，这在空闲连接较多时，产生大量的空闲 goroutine，增加调度开销。
 此外，&lt;a href="https://github.com/golang/go/blob/master/src/net/net.go"&gt;net.Conn&lt;/a&gt; 没有提供检查连接活性的 API，很难设计出高效的连接池，池中的失效连接无法及时清理，复用低效。&lt;/p&gt;
@@ -533,11 +533,11 @@ CloudWeGo 下的项目主要有三个特点：&lt;strong&gt;高性能&lt;/strong
 &lt;p&gt;因此 &lt;a href="https://github.com/cloudwego/netpoll"&gt;Netpoll&lt;/a&gt; 应运而生，它借鉴了 evio 和 Netty 的优秀设计，具有出色的 &lt;a href="https://github.com/cloudwego/netpoll/blob/main/README_CN.md#%e6%80%a7%e8%83%bd"&gt;性能&lt;/a&gt;，更适用于微服务架构。
 同时，&lt;a href="https://github.com/cloudwego/netpoll"&gt;Netpoll&lt;/a&gt; 还提供了一些 &lt;a href="https://github.com/cloudwego/netpoll/blob/main/README_CN.md#%e7%89%b9%e6%80%a7"&gt;特性&lt;/a&gt;，推荐在 RPC 框架中作为底层网络库。&lt;/p&gt;
 &lt;h3 id="thriftgo"&gt;Thriftgo&lt;/h3&gt;
-&lt;p&gt;&lt;a href="https://github.com/cloudwego/thriftgo"&gt;Thriftgo&lt;/a&gt; 是 Go 语言实现的 Thrift IDL 解析和代码生成器，支持完善的 Thrift IDL 语法和语义检查，相较 Apache Thrift 官方的 Golang 生成代码，&lt;a href="https://github.com/cloudwego/thriftgo"&gt;Thriftgo&lt;/a&gt; 做了一些问题修复且支持插件机制，用户可根据需求自定义生成代码。&lt;/p&gt;
+&lt;p&gt;&lt;a href="https://github.com/cloudwego/thriftgo"&gt;Thriftgo&lt;/a&gt; 是 Go 语言实现的 Thrift IDL 解析和代码生成器，支持完善的 Thrift IDL 语法和语义检查，相较 Apache Thrift 官方的 Go 生成代码，&lt;a href="https://github.com/cloudwego/thriftgo"&gt;Thriftgo&lt;/a&gt; 做了一些问题修复且支持插件机制，用户可根据需求自定义生成代码。&lt;/p&gt;
 &lt;p&gt;&lt;a href="https://github.com/cloudwego/kitex"&gt;Kitex&lt;/a&gt; 的代码生成工具就是 &lt;a href="https://github.com/cloudwego/thriftgo"&gt;Thriftgo&lt;/a&gt; 的插件，CloudWeGo 近期也会开源另一个 &lt;a href="https://github.com/cloudwego/thriftgo"&gt;Thriftgo&lt;/a&gt; 的插件 thrift-gen-validator，支持 IDL Validator，用于字段值校验，解决开发者需要自行实现代码校验逻辑的负担，弥补 Thrift 缺失的能力。&lt;/p&gt;
-&lt;p&gt;&lt;a href="https://github.com/cloudwego/thriftgo"&gt;Thriftgo&lt;/a&gt; 目前虽然仅支持生成 Golang Thrift 代码，但其定位是可支持各语言的 Thrift 代码生成，未来如果有需求，我们也会考虑生成其他语言的代码，同时我们也将尝试将其回馈至 Apache Thrift 社区。&lt;/p&gt;
+&lt;p&gt;&lt;a href="https://github.com/cloudwego/thriftgo"&gt;Thriftgo&lt;/a&gt; 目前虽然仅支持生成 Go Thrift 代码，但其定位是可支持各语言的 Thrift 代码生成，未来如果有需求，我们也会考虑生成其他语言的代码，同时我们也将尝试将其回馈至 Apache Thrift 社区。&lt;/p&gt;
 &lt;h3 id="netpoll-http2"&gt;Netpoll-http2&lt;/h3&gt;
-&lt;p&gt;Netpoll-http2 是基于 Golang 标准库 golang.org/x/net/http2 的源码替换 go net 为 &lt;a href="https://github.com/cloudwego/netpoll"&gt;Netpoll&lt;/a&gt;，目前用于 &lt;a href="https://github.com/cloudwego/kitex"&gt;Kitex&lt;/a&gt; 对 gRPC 协议的支持，对 HTTP2 有需求的外部开发者也可以使用此库。&lt;/p&gt;
+&lt;p&gt;Netpoll-http2 是基于 Go 标准库 golang.org/x/net/http2 的源码替换 go net 为 &lt;a href="https://github.com/cloudwego/netpoll"&gt;Netpoll&lt;/a&gt;，目前用于 &lt;a href="https://github.com/cloudwego/kitex"&gt;Kitex&lt;/a&gt; 对 gRPC 协议的支持，对 HTTP2 有需求的外部开发者也可以使用此库。&lt;/p&gt;
 &lt;h2 id="内外版本维护"&gt;内外版本维护&lt;/h2&gt;
 &lt;p&gt;完整的微服务体系离不开基础的云生态，无论在公有云、私有云还是基于自己的基础设施开发微服务，都需要搭建额外的服务以很好的支持微服务的治理，比如治理平台、监控、链路跟踪、注册/发现、配置中心、服务网格等，
 而且还存在一些定制的规范。字节跳动自然也有完善的内部服务支持微服务体系，但这些服务短期还无法开源，那 CloudWeGo 如何内外维护一套代码，统一迭代呢？&lt;/p&gt;

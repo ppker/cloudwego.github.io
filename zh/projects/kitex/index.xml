@@ -560,9 +560,9 @@
 &lt;p&gt;简单来说，Code First 就是先写代码，再由代码生成数据模型和接口规范（比如先代码写一个 http 接口，然后用 Swagger 来生成 API 信息）&lt;/p&gt;
 &lt;p&gt;而 RPC 开发更多是 Schema First ，因为 RPC 服务可能是跨语言的，不一定会先写代码，而是用 Thrift、Protobuf 这些通用的 IDL 来描述接口和结构体，再生成对应语言、对应框架的具体代码。&lt;/p&gt;
 &lt;p&gt;（btw，用 IDL 生成 RPC 代码通常也比手搓一堆结构体和 Getter Setter 要方便不少）&lt;/p&gt;
-&lt;p&gt;Kitex RPC 开发步骤也是先写 IDL，再由 Kitex Tool 生成 Golang 代码：&lt;/p&gt;
+&lt;p&gt;Kitex RPC 开发步骤也是先写 IDL，再由 Kitex Tool 生成 Go 代码：&lt;/p&gt;
 &lt;ol&gt;
-&lt;li&gt;IDL 里的结构体定义会被生成为 Golang 的桩结构体（和一些 Getter Setter）&lt;/li&gt;
+&lt;li&gt;IDL 里的结构体定义会被生成为 Go 的桩结构体（和一些 Getter Setter）&lt;/li&gt;
 &lt;li&gt;IDL 里 Service 和 Method 会被生成为 NewKitexClient、NewKitexServer、KitexServiceInfo 这些框架使用相关的脚手架函数&lt;/li&gt;
 &lt;/ol&gt;
 &lt;p&gt;但如果你仔细观察过 kitex_gen 的内容，会发现上面代码占比并不多，主要是 FastRead、FastWrite 这些序列化相关的函数占了很多行。&lt;/p&gt;
@@ -785,7 +785,7 @@ server.WithPayloadCodec(thrift.NewThriftCodecWithConfig(thrift.FrugalWrite|thrif
 &lt;h3 id="frugal"&gt;Frugal&lt;/h3&gt;
 &lt;p&gt;特点：产物体积减小约 90%，速度等比例提升&lt;/p&gt;
 &lt;h4 id="简介-5"&gt;简介&lt;/h4&gt;
-&lt;p&gt;Frugal 是一款动态的不需要编解码代码的 Thrift 编解码器，通过启用 slim 模板，Kitex 可以只生成 Golang Types，上文提到的 Apache Codec 和 Fast Codec 都不需要了，编解码在运行时通过反射或 JIT 实现。这样可以大幅减少生成的代码量，减少 IDE 加载时间，相比正常的 kitex_gen，体积缩小 90%，且性能仍然较高。&lt;/p&gt;
+&lt;p&gt;Frugal 是一款动态的不需要编解码代码的 Thrift 编解码器，通过启用 slim 模板，Kitex 可以只生成 Go Types，上文提到的 Apache Codec 和 Fast Codec 都不需要了，编解码在运行时通过反射或 JIT 实现。这样可以大幅减少生成的代码量，减少 IDE 加载时间，相比正常的 kitex_gen，体积缩小 90%，且性能仍然较高。&lt;/p&gt;
 &lt;h4 id="使用-5"&gt;使用&lt;/h4&gt;
 &lt;p&gt;说来话长，步骤相对较多，详见：https://github.com/cloudwego/frugal&lt;/p&gt;
 &lt;h4 id="注意-2"&gt;注意&lt;/h4&gt;
@@ -797,15 +797,15 @@ server.WithPayloadCodec(thrift.NewThriftCodecWithConfig(thrift.FrugalWrite|thrif
 &lt;li&gt;在 ARM64 场景还处在试验性的支持中&lt;/li&gt;
 &lt;/ul&gt;
 &lt;h4 id="其他"&gt;其他&lt;/h4&gt;
-&lt;p&gt;近期我们实现了一个基于 Golang 反射版的 Frugal，对不同系统的兼容性较好，而且也不会有太严重的首次耗时，后续会更新文档和相关使用方式&lt;/p&gt;
+&lt;p&gt;近期我们实现了一个基于 Go 反射版的 Frugal，对不同系统的兼容性较好，而且也不会有太严重的首次耗时，后续会更新文档和相关使用方式&lt;/p&gt;
 &lt;p&gt;长期规划中，我们期望 Frugal 能逐渐广泛落地，让绝大多数 Kitex 项目不再需要生成大量代码，只有当对性能有更高要求的场景，才使用 FastCodec 这种静态生成的编解码。&lt;/p&gt;
 &lt;h3 id="进阶-工具-sdk-化"&gt;进阶: 工具 SDK 化&lt;/h3&gt;
 &lt;p&gt;速度预计优化 10%~25%，易用性和维护性有提升&lt;/p&gt;
 &lt;blockquote&gt;
 &lt;p&gt;这是个进阶功能，如果你是某个 Kitex Tool 相关的代码生成项目维护者，可能会对你有帮助&lt;/p&gt;&lt;/blockquote&gt;
 &lt;h4 id="简介-6"&gt;简介&lt;/h4&gt;
-&lt;p&gt;当要使用 Kitex Tool 生成代码，以往都只能安装 Kitex Tool （以及 Thriftgo、Validator 等工具链），然后执行命令来触发。一些代码生成项目，是通过在 Golang 代码里起一个进程，通过 os.Exec 来调用本地的 Kitex Tool，实现代码生成的。&lt;/p&gt;
-&lt;p&gt;之前这样设计是想着能跨语言、插件进程可拔插，不过实际场景用到的很少。所以在 v0.11.0 之后，Kitex Tool 提供了 SDK 化调用的能力，可以通过引入依赖包 + Golang 函数来生成代码，而无需再安装 Kitex Tool、Thriftgo、Validator 插件等一系列工具链了&lt;/p&gt;
+&lt;p&gt;当要使用 Kitex Tool 生成代码，以往都只能安装 Kitex Tool （以及 Thriftgo、Validator 等工具链），然后执行命令来触发。一些代码生成项目，是通过在 Go 代码里起一个进程，通过 os.Exec 来调用本地的 Kitex Tool，实现代码生成的。&lt;/p&gt;
+&lt;p&gt;之前这样设计是想着能跨语言、插件进程可拔插，不过实际场景用到的很少。所以在 v0.11.0 之后，Kitex Tool 提供了 SDK 化调用的能力，可以通过引入依赖包 + Go 函数来生成代码，而无需再安装 Kitex Tool、Thriftgo、Validator 插件等一系列工具链了&lt;/p&gt;
 &lt;h4 id="使用-6"&gt;使用&lt;/h4&gt;
 &lt;p&gt;首先引入依赖包： &lt;code&gt;import &amp;quot;github.com/cloudwego/kitex/tool/cmd/kitex/sdk&amp;quot;&lt;/code&gt;&lt;/p&gt;
 &lt;p&gt;接口签名如下：&lt;/p&gt;
@@ -2112,7 +2112,7 @@ server.WithPayloadCodec(thrift.NewThriftCodecWithConfig(thrift.FrugalWrite|thrif
 &lt;h2 id="01-引言"&gt;01 引言&lt;/h2&gt;
 &lt;h3 id="kitex-proxyless"&gt;&lt;strong&gt;Kitex Proxyless&lt;/strong&gt;&lt;/h3&gt;
 &lt;blockquote&gt;
-&lt;p&gt;&lt;a href="https://github.com/cloudwego/kitex"&gt;Kitex&lt;/a&gt; 是字节开源的 Golang RPC 框架，已经原生支持了 xDS 标准协议，支持以 Proxyless 的方式被 ServiceMesh 统一纳管。&lt;/p&gt;
+&lt;p&gt;&lt;a href="https://github.com/cloudwego/kitex"&gt;Kitex&lt;/a&gt; 是字节开源的 Go RPC 框架，已经原生支持了 xDS 标准协议，支持以 Proxyless 的方式被 ServiceMesh 统一纳管。&lt;/p&gt;
 &lt;ul&gt;
 &lt;li&gt;详细设计见：
 &lt;a href="https://github.com/cloudwego/kitex/issues/461"&gt;Proposal: Kitex support xDS Protocol · Issue #461 · cloudwego/kitex&lt;/a&gt;&lt;/li&gt;
@@ -2337,10 +2337,10 @@ server.WithPayloadCodec(thrift.NewThriftCodecWithConfig(thrift.FrugalWrite|thrif
 &lt;h2 id="由内至外---开源过渡"&gt;由内至外 - 开源过渡&lt;/h2&gt;
 &lt;p&gt;很多同学可能刚刚了解 CloudWeGo，先介绍一下 CloudWeGo 和 &lt;a href="https://github.com/cloudwego/kitex"&gt;Kitex&lt;/a&gt; 的关系。&lt;/p&gt;
 &lt;h3 id="cloudwego-和-kitex"&gt;CloudWeGo 和 Kitex&lt;/h3&gt;
-&lt;p&gt;&lt;a href="https://github.com/cloudwego/kitex"&gt;Kitex&lt;/a&gt; 是 CloudWeGo 开源的第一个微服务框架，它是一个 &lt;strong&gt;支持多协议的 Golang RPC 框架&lt;/strong&gt; ，从网络库、序列化库到框架的实现&lt;strong&gt;基本完全自研&lt;/strong&gt;的。
+&lt;p&gt;&lt;a href="https://github.com/cloudwego/kitex"&gt;Kitex&lt;/a&gt; 是 CloudWeGo 开源的第一个微服务框架，它是一个 &lt;strong&gt;支持多协议的 Go RPC 框架&lt;/strong&gt; ，从网络库、序列化库到框架的实现&lt;strong&gt;基本完全自研&lt;/strong&gt;的。
 特别地，&lt;a href="https://github.com/cloudwego/kitex"&gt;Kitex&lt;/a&gt; 对 gRPC 协议的支持使用了 gRPC 官方的源码，但是我们对 gRPC 的实现做了 &lt;strong&gt;深度且定制的优化&lt;/strong&gt; ，所以 &lt;a href="https://github.com/cloudwego/kitex"&gt;Kitex&lt;/a&gt; 支持的 gRPC 协议性能优于 gRPC 官方框架。
-同时这也是 &lt;a href="https://github.com/cloudwego/kitex"&gt;Kitex&lt;/a&gt; 与目前已经开源的、支持 gRPC 协议的其他 Golang 框架的主要差异。如果用户想使用 gRPC 又对性能有很高的要求，那么 &lt;a href="https://github.com/cloudwego/kitex"&gt;Kitex&lt;/a&gt; 框架将会是一个很不错的选择。&lt;/p&gt;
-&lt;p&gt;继 &lt;a href="https://github.com/cloudwego/kitex"&gt;Kitex&lt;/a&gt; 开源后，今年 CloudWeGo 又陆续开源了 Golang HTTP 框架 &lt;a href="https://github.com/cloudwego/hertz"&gt;Hertz&lt;/a&gt;，Rust RPC 框架 &lt;a href="https://github.com/cloudwego/volo"&gt;Volo&lt;/a&gt;，同时围绕这些微服务框架和微服务的一些通用能力，
+同时这也是 &lt;a href="https://github.com/cloudwego/kitex"&gt;Kitex&lt;/a&gt; 与目前已经开源的、支持 gRPC 协议的其他 Go 框架的主要差异。如果用户想使用 gRPC 又对性能有很高的要求，那么 &lt;a href="https://github.com/cloudwego/kitex"&gt;Kitex&lt;/a&gt; 框架将会是一个很不错的选择。&lt;/p&gt;
+&lt;p&gt;继 &lt;a href="https://github.com/cloudwego/kitex"&gt;Kitex&lt;/a&gt; 开源后，今年 CloudWeGo 又陆续开源了 Go HTTP 框架 &lt;a href="https://github.com/cloudwego/hertz"&gt;Hertz&lt;/a&gt;，Rust RPC 框架 &lt;a href="https://github.com/cloudwego/volo"&gt;Volo&lt;/a&gt;，同时围绕这些微服务框架和微服务的一些通用能力，
 我们还开源了一些高性能的基础库。关于更多 CloudWeGo 开源的子项目，可以进入 CloudWeGo &lt;a href="https://www.cloudwego.io/zh/"&gt;官网&lt;/a&gt;详细了解。&lt;/p&gt;
 &lt;p&gt;&lt;a href="https://www.cloudwego.io/zh/"&gt;CloudWeGo 官网&lt;/a&gt;&lt;/p&gt;
 &lt;p&gt;&lt;img src="https://www.cloudwego.io/img/blog/1st_RPC_Kitex/1.png" alt="image"&gt;&lt;/p&gt;
@@ -2348,11 +2348,11 @@ server.WithPayloadCodec(thrift.NewThriftCodecWithConfig(thrift.FrugalWrite|thrif
 在 &lt;a href="https://github.com/cloudwego/kitex"&gt;Kitex&lt;/a&gt; 开源后始终保持内外统一，基于内外代码的统一我们保证了 &lt;a href="https://github.com/cloudwego/kitex"&gt;Kitex&lt;/a&gt; 的持续迭代。为了进一步消除大家的顾虑，下面具体介绍一下 &lt;a href="https://github.com/cloudwego/kitex"&gt;Kitex&lt;/a&gt; 的诞生和开源历程。&lt;/p&gt;
 &lt;p&gt;&lt;img src="https://www.cloudwego.io/img/blog/1st_RPC_Kitex/2.png" alt="image"&gt;&lt;/p&gt;
 &lt;h3 id="kitex-发展历史"&gt;Kitex 发展历史&lt;/h3&gt;
-&lt;p&gt;2014 年，字节跳动开始引入 Golang。2015 年，字节跳动内部的服务化开启。在 RPC 调用的场景选择了 Thrift 协议，在内部开始支持 RPC 框架。2016 年，第一个 Golang RPC 框架 Kite 正式发布。
+&lt;p&gt;2014 年，字节跳动开始引入 Go。2015 年，字节跳动内部的服务化开启。在 RPC 调用的场景选择了 Thrift 协议，在内部开始支持 RPC 框架。2016 年，第一个 Go RPC 框架 Kite 正式发布。
 通常在一个公司高速发展的初期，基础能力都是为了快速支持需求落地，面对的需求场景也较单一，设计上不会有较多考量，其实这也是合理的，因为探索阶段并不完全清楚还需要支持哪些场景，过多的考虑反而会出现过度设计的问题。&lt;/p&gt;
 &lt;p&gt;但是，随着业务场景复杂化，需求也会多样化，而且接入服务及调用量逐年增长，Kite 已经不足以支持后续的迭代，在线上服役三年多后，2019 年我们开启了新的项目 &lt;a href="https://github.com/cloudwego/kitex"&gt;Kitex&lt;/a&gt;，2020 年初发布了正式版本，在 2020 年底字节内部已经有 1w+ 服务接入 Kitex。&lt;/p&gt;
-&lt;p&gt;从 2014 年到 2020 年，Golang 已经是字节跳动内部主要的业务开发语言，应该是业界 Golang 应用最多的公司。我们的服务框架支持着数万个 Golang 微服务的可靠通信，
-经过数量众多的微服务和海量流量的验证，我们已经有了较为成熟的微服务最佳实践，于是考虑将内部的实践开源出去丰富云原生社区的 Golang 产品体系。
+&lt;p&gt;从 2014 年到 2020 年，Go 已经是字节跳动内部主要的业务开发语言，应该是业界 Go 应用最多的公司。我们的服务框架支持着数万个 Go 微服务的可靠通信，
+经过数量众多的微服务和海量流量的验证，我们已经有了较为成熟的微服务最佳实践，于是考虑将内部的实践开源出去丰富云原生社区的 Go 产品体系。
 在 2021年，我们以 CloudWeGo 品牌正式开源了第一个服务框架 &lt;a href="https://github.com/cloudwego/kitex"&gt;Kitex&lt;/a&gt;。截至今年 8 月，&lt;a href="https://github.com/cloudwego/kitex"&gt;Kitex&lt;/a&gt; 已经为字节跳动内部 &lt;strong&gt;6w+&lt;/strong&gt; 的服务提供支持， &lt;strong&gt;峰值 QPS 达到上亿级别&lt;/strong&gt; 。&lt;/p&gt;
 &lt;p&gt;&lt;img src="https://www.cloudwego.io/img/blog/1st_RPC_Kitex/3.png" alt="image"&gt;&lt;/p&gt;
 &lt;p&gt;大家或许还有疑问，完整的微服务体系离不开基础的云生态，无论在公有云、私有云，都需要搭建额外的服务以很好地支持微服务的治理，比如治理平台、注册中心、配置中心、监控、链路跟踪、服务网格等，而且还存在一些定制的规范。
@@ -2364,7 +2364,7 @@ server.WithPayloadCodec(thrift.NewThriftCodecWithConfig(thrift.FrugalWrite|thrif
 &lt;p&gt;&lt;img src="https://www.cloudwego.io/img/blog/1st_RPC_Kitex/4.png" alt="image"&gt;&lt;/p&gt;
 &lt;p&gt;如此，我们就可以将 &lt;a href="https://github.com/cloudwego/kitex"&gt;Kitex&lt;/a&gt; Core 和 Tool 部分开源出去。我们将代码做了拆分，&lt;a href="https://github.com/cloudwego/kitex"&gt;Kitex&lt;/a&gt; 的核心代码和工具部分迁移到开源库，集成内部扩展的模块作为 &lt;a href="https://github.com/cloudwego/kitex"&gt;Kitex&lt;/a&gt; 的扩展保留在内部库，同时内部库封装一层壳保证内部用户可以无感知地升级。&lt;/p&gt;
 &lt;p&gt;那么 &lt;a href="https://github.com/cloudwego/kitex"&gt;Kitex&lt;/a&gt; 的开源就只是代码拆分这么简单吗？显然不是。2021 年 2 月，我们开始筹备 &lt;a href="https://github.com/cloudwego/kitex"&gt;Kitex&lt;/a&gt; 的开源，虽然基于 &lt;a href="https://github.com/cloudwego/kitex"&gt;Kitex&lt;/a&gt; 的扩展性，我们可以与内部基础设施集成的能力解耦，但是 &lt;a href="https://github.com/cloudwego/kitex"&gt;Kitex&lt;/a&gt; 仍然依赖内部的一些基础库，如果要开源必须先开源基础库的能力。
-所以我们首先做了依赖库的梳理，与相关的同学合作首先开源了 &lt;strong&gt;bytedance/gopkg&lt;/strong&gt; 库。这个库由 CloudWeGo 与字节跳动的语言团队合作维护，里面包含也了对 Golang 标准库能力的增强，感兴趣的同学可以关注使用。&lt;/p&gt;
+所以我们首先做了依赖库的梳理，与相关的同学合作首先开源了 &lt;strong&gt;bytedance/gopkg&lt;/strong&gt; 库。这个库由 CloudWeGo 与字节跳动的语言团队合作维护，里面包含也了对 Go 标准库能力的增强，感兴趣的同学可以关注使用。&lt;/p&gt;
 &lt;p&gt;bytedance/gopkg: &lt;a href="https://github.com/bytedance/gopkg"&gt;https://github.com/bytedance/gopkg&lt;/a&gt;&lt;/p&gt;
 &lt;p&gt;&lt;img src="https://www.cloudwego.io/img/blog/1st_RPC_Kitex/5.png" alt="image"&gt;&lt;/p&gt;
 &lt;p&gt;在 gopkg 库开源后，我们调整代码进行开源适配。2021 年 7 月，&lt;a href="https://github.com/cloudwego/kitex"&gt;Kitex&lt;/a&gt; 正式开源，在内部发布中版本使用开源库。
@@ -2411,7 +2411,7 @@ xDS 支持的扩展单独开源到了 &lt;a href="https://github.com/kitex-contr
 &lt;p&gt;&lt;img src="https://www.cloudwego.io/img/blog/1st_RPC_Kitex/8.png" alt="image"&gt;&lt;/p&gt;
 &lt;p&gt;&lt;strong&gt;目前 &lt;a href="https://github.com/cloudwego/kitex"&gt;Kitex&lt;/a&gt; 的泛化主要针对后端的 Thrift 服务，无论是 Protobuf、Map 还是 JSON，&lt;a href="https://github.com/cloudwego/kitex"&gt;Kitex&lt;/a&gt; 都会在调用端结合 IDL 解析，将这些数据映射编码为 Thrift 包发给后端服务。&lt;/strong&gt;&lt;/p&gt;
 &lt;p&gt;那么为什么把泛化放在调用端而不是服务端呢？大家广泛了解的泛化都是服务端对泛化请求做了解析处理，当然调用端也要相应地提供泛化的 Client。
-但是泛化面向的是通用服务，泛化使用成本其实是比较高的，它并不适用于普通的 RPC 场景，而通用服务面向的是所有后端的服务，有 Golang/Java/C++/Python/Rust，如果每一种语言框架都支持泛化，成本是非常高的。
+但是泛化面向的是通用服务，泛化使用成本其实是比较高的，它并不适用于普通的 RPC 场景，而通用服务面向的是所有后端的服务，有 Go/Java/C++/Python/Rust，如果每一种语言框架都支持泛化，成本是非常高的。
 就算各个语言都对泛化做了支持，框架版本收敛又是一个漫长的过程，对于通用服务来说，对接所有的服务就显得不太现实。综合以上原因，泛化放在调用端支持。&lt;/p&gt;
 &lt;h4 id="重试能力增强"&gt;重试能力增强&lt;/h4&gt;
 &lt;p&gt;去年开源时，&lt;a href="https://github.com/cloudwego/kitex"&gt;Kitex&lt;/a&gt; 已经支持了重试功能。之前支持的重试有两类，一个是超时重试，一个是 Backup Request。&lt;/p&gt;
@@ -2630,18 +2630,18 @@ xDS 支持的扩展单独开源到了 &lt;a href="https://github.com/kitex-contr
 &lt;/ul&gt;</description></item><item><title>Blog: 字节微服务框架的挑战和演进</title><link>https://www.cloudwego.io/zh/blog/2022/05/19/%E5%AD%97%E8%8A%82%E5%BE%AE%E6%9C%8D%E5%8A%A1%E6%A1%86%E6%9E%B6%E7%9A%84%E6%8C%91%E6%88%98%E5%92%8C%E6%BC%94%E8%BF%9B/</link><pubDate>Thu, 19 May 2022 00:00:00 +0000</pubDate><guid>https://www.cloudwego.io/zh/blog/2022/05/19/%E5%AD%97%E8%8A%82%E5%BE%AE%E6%9C%8D%E5%8A%A1%E6%A1%86%E6%9E%B6%E7%9A%84%E6%8C%91%E6%88%98%E5%92%8C%E6%BC%94%E8%BF%9B/</guid><description>
 &lt;h2 id="字节微服务框架的挑战和演进"&gt;字节微服务框架的挑战和演进&lt;/h2&gt;
 &lt;p&gt;2014 年以来，字节跳动内部业务的快速发展，推动了长连接推送服务，它们面临着高并发的业务需求问题，对性能和开发效率都有很高要求。当时的业务，大部分都是由 Python 开发，难以应对新出现的问题。
-项目负责人在一众现存的技术栈中选择了 Golang 这一门新兴的编程语言，快速解决了性能和开发效率的问题。随后，字节跳动内部开始逐渐推广使用 Golang 进行服务开发。&lt;/p&gt;
-&lt;p&gt;2016 年， 第一代 Golang RPC 框架 Kite 正式发布。Kite 是一个基于 Apache Thrift 进行包装的 RPC 框架，它在 Facebook 开源的 Thrift 之上提供了结合字节跳动内部基础设施的治理功能，
-同时还提供了一套简单易用的生成工具。随着 Kite 的发展，业务开始大规模使用 Golang。然而，在业务发展的过程中，由于研发专注于实现业务需求，对于框架的可维护性考量不足，Kite 逐渐背上了一些技术包袱，
+项目负责人在一众现存的技术栈中选择了 Go 这一门新兴的编程语言，快速解决了性能和开发效率的问题。随后，字节跳动内部开始逐渐推广使用 Go 进行服务开发。&lt;/p&gt;
+&lt;p&gt;2016 年， 第一代 Go RPC 框架 Kite 正式发布。Kite 是一个基于 Apache Thrift 进行包装的 RPC 框架，它在 Facebook 开源的 Thrift 之上提供了结合字节跳动内部基础设施的治理功能，
+同时还提供了一套简单易用的生成工具。随着 Kite 的发展，业务开始大规模使用 Go。然而，在业务发展的过程中，由于研发专注于实现业务需求，对于框架的可维护性考量不足，Kite 逐渐背上了一些技术包袱，
 越来越难以满足业务在高性能和新特性方面的需求。因此我们决定对 Kite 进行重新设计，于是出现了 &lt;a href="https://github.com/cloudwego/kitex"&gt;Kitex&lt;/a&gt;。&lt;/p&gt;
 &lt;p&gt;2020 年，&lt;a href="https://github.com/cloudwego/kitex"&gt;Kitex&lt;/a&gt; 在内部发布了 v1.0.0，并且直接接入了 1,000+ 服务。由于 &lt;a href="https://github.com/cloudwego/kitex"&gt;Kitex&lt;/a&gt; 的优秀性能和易用性，&lt;a href="https://github.com/cloudwego/kitex"&gt;Kitex&lt;/a&gt; 在内部得到了大规模发展。
 直到 2021 年年中，字节跳动内部已有 2w+ 服务使用了 &lt;a href="https://github.com/cloudwego/kitex"&gt;Kitex&lt;/a&gt;。因此，我们决定全面优化 &lt;a href="https://github.com/cloudwego/kitex"&gt;Kitex&lt;/a&gt;，将其实践成果进行开源，反馈给开源社区。&lt;/p&gt;
 &lt;p&gt;&lt;img src="https://www.cloudwego.io/img/blog/Evolution_Kitex_High-performance/GolangRPC.png" alt="image"&gt;&lt;/p&gt;
 &lt;p align="center"&gt;
-字节跳动 Golang RPC 框架的演进
+字节跳动 Go RPC 框架的演进
 &lt;/p&gt;
 &lt;h3 id="kite-的缺陷"&gt;Kite 的缺陷&lt;/h3&gt;
-&lt;p&gt;Kite 作为字节跳动第一代 Golang RPC 框架，主要存在以下缺陷：&lt;/p&gt;
+&lt;p&gt;Kite 作为字节跳动第一代 Go RPC 框架，主要存在以下缺陷：&lt;/p&gt;
 &lt;ol&gt;
 &lt;li&gt;Kite 为了快速支持业务发展需求，不可避免地耦合了部分中台业务的功能；&lt;/li&gt;
 &lt;li&gt;Kite 对 Go modules 支持不友好（Go modules 在 2019 年才进入语言核心）；&lt;/li&gt;
@@ -2649,7 +2649,7 @@ xDS 支持的扩展单独开源到了 &lt;a href="https://github.com/kitex-contr
 &lt;li&gt;Kite 强耦合了早期版本的 Apache Thrift，协议和功能拓展困难；&lt;/li&gt;
 &lt;li&gt;Kite 的生成代码逻辑与框架接口强耦合，成为了性能优化的天花板。&lt;/li&gt;
 &lt;/ol&gt;
-&lt;p&gt;因此，业务的快速发展和需求场景的多样化，催生了新一代 Golang RPC 框架 &lt;a href="https://github.com/cloudwego/kitex"&gt;Kitex&lt;/a&gt;。&lt;/p&gt;
+&lt;p&gt;因此，业务的快速发展和需求场景的多样化，催生了新一代 Go RPC 框架 &lt;a href="https://github.com/cloudwego/kitex"&gt;Kitex&lt;/a&gt;。&lt;/p&gt;
 &lt;h3 id="kitex"&gt;Kitex&lt;/h3&gt;
 &lt;p&gt;&lt;a href="https://github.com/cloudwego/kitex"&gt;Kitex&lt;/a&gt; 的架构主要包括四个部分：Kitex Tool、Kitex Core、Kitex Byted、Second Party Pkg。&lt;/p&gt;
 &lt;ul&gt;
@@ -2666,7 +2666,7 @@ Kitex 的架构设计
 &lt;h3 id="面向开源"&gt;面向开源&lt;/h3&gt;
 &lt;p&gt;由于之前已经体验过了 Kite 维护的各种问题，我们在立项之初就考虑到了未来可能会开源 &lt;a href="https://github.com/cloudwego/kitex"&gt;Kitex&lt;/a&gt;。因此，我们设计的第一个宗旨就是不将 &lt;a href="https://github.com/cloudwego/kitex"&gt;Kitex&lt;/a&gt; 和公司内部的基础设施进行强耦合或者硬编码绑定。
 Kitex Core 是一个非常简洁的框架，公司内部的所有基础设施都以拓展的方式注入到 Kitex Core 里。即使我们现在已经开源了，它也以这种形式存在。
-公司内部基础设施的更新换代，和 &lt;a href="https://github.com/cloudwego/kitex"&gt;Kitex&lt;/a&gt; 自身的迭代是相互独立的，这对于业务来说是非常好的体验。同时，在 &lt;a href="https://github.com/cloudwego/kitex"&gt;Kitex&lt;/a&gt; 的接口设计上，我们使用了 Golang 经典的 Option 模式，
+公司内部基础设施的更新换代，和 &lt;a href="https://github.com/cloudwego/kitex"&gt;Kitex&lt;/a&gt; 自身的迭代是相互独立的，这对于业务来说是非常好的体验。同时，在 &lt;a href="https://github.com/cloudwego/kitex"&gt;Kitex&lt;/a&gt; 的接口设计上，我们使用了 Go 经典的 Option 模式，
 它是可变参数，通过 Option 能够提供各种各样的功能，这为我们的开发和业务的使用都带来了非常大的灵活性。&lt;/p&gt;
 &lt;h3 id="kitex-的功能特性"&gt;Kitex 的功能特性&lt;/h3&gt;
 &lt;h4 id="治理能力"&gt;治理能力&lt;/h4&gt;
@@ -3008,7 +3008,7 @@ Kitex/gRPC 性能对比（2022 年 1 月数据）
 &lt;ul&gt;
 &lt;li&gt;github.com/cloudwego/netpoll: v0.0.4 -&amp;gt; v0.1.2&lt;/li&gt;
 &lt;/ul&gt;</description></item><item><title>Blog: RPC 框架 Kitex 实践入门：性能测试指南</title><link>https://www.cloudwego.io/zh/blog/2021/11/24/rpc-%E6%A1%86%E6%9E%B6-kitex-%E5%AE%9E%E8%B7%B5%E5%85%A5%E9%97%A8%E6%80%A7%E8%83%BD%E6%B5%8B%E8%AF%95%E6%8C%87%E5%8D%97/</link><pubDate>Wed, 24 Nov 2021 00:00:00 +0000</pubDate><guid>https://www.cloudwego.io/zh/blog/2021/11/24/rpc-%E6%A1%86%E6%9E%B6-kitex-%E5%AE%9E%E8%B7%B5%E5%85%A5%E9%97%A8%E6%80%A7%E8%83%BD%E6%B5%8B%E8%AF%95%E6%8C%87%E5%8D%97/</guid><description>
-&lt;p&gt;日前，字节跳动服务框架团队正式开源 CloudWeGo ，在抖音、今日头条均有深度应用的 Golang 微服务 RPC 框架 &lt;a href="https://github.com/cloudwego/kitex"&gt;Kitex&lt;/a&gt; 也包含在其中。&lt;/p&gt;
+&lt;p&gt;日前，字节跳动服务框架团队正式开源 CloudWeGo ，在抖音、今日头条均有深度应用的 Go 微服务 RPC 框架 &lt;a href="https://github.com/cloudwego/kitex"&gt;Kitex&lt;/a&gt; 也包含在其中。&lt;/p&gt;
 &lt;p&gt;本文旨在分享开发者在压测 &lt;a href="https://github.com/cloudwego/kitex"&gt;Kitex&lt;/a&gt; 时需要了解的场景和技术问题。这些建议有助于用户更好地结合真实 RPC 场景对 &lt;a href="https://github.com/cloudwego/kitex"&gt;Kitex&lt;/a&gt; 进行调优，使之更贴合业务需要、发挥最佳性能。用户也可以参考官方提供的压测项目 &lt;a href="https://github.com/cloudwego/kitex-benchmark"&gt;kitex-benchmark&lt;/a&gt; 了解更多细节。&lt;/p&gt;
 &lt;h2 id="微服务场景的特点"&gt;微服务场景的特点&lt;/h2&gt;
 &lt;p&gt;&lt;a href="https://github.com/cloudwego/kitex"&gt;Kitex&lt;/a&gt; 诞生于字节跳动大规模微服务架构实践，面向的场景自然是微服务场景，因此下面会先介绍微服务的特点，方便开发者深入理解 &lt;a href="https://github.com/cloudwego/kitex"&gt;Kitex&lt;/a&gt; 在其中的设计思考。&lt;/p&gt;
@@ -3067,7 +3067,7 @@ Kitex/gRPC 性能对比（2022 年 1 月数据）
 &lt;p&gt;&lt;img src="https://www.cloudwego.io/img/blog/kitex_performance_testing/qps.png" alt="image"&gt;
 &lt;img src="https://www.cloudwego.io/img/blog/kitex_performance_testing/tp99.png" alt="image"&gt;&lt;/p&gt;
 &lt;h2 id="结语"&gt;结语&lt;/h2&gt;
-&lt;p&gt;在当前主流的 Golang 开源 RPC 框架中，每个框架其实在设计目标上都各有侧重：有些框架侧重于通用性，有些侧重于类似 Redis 这种轻业务逻辑的场景，有些侧重于吞吐性能，而有些则更侧重 P99 时延。&lt;/p&gt;
+&lt;p&gt;在当前主流的 Go 开源 RPC 框架中，每个框架其实在设计目标上都各有侧重：有些框架侧重于通用性，有些侧重于类似 Redis 这种轻业务逻辑的场景，有些侧重于吞吐性能，而有些则更侧重 P99 时延。&lt;/p&gt;
 &lt;p&gt;字节跳动的业务在日常迭代中，常常会出现因某个 feature 导致一个指标上升，另一个指标下降的情况，因此 &lt;a href="https://github.com/cloudwego/kitex"&gt;Kitex&lt;/a&gt; 在设计之初就更倾向于解决大规模微服务场景下各种问题。&lt;/p&gt;
 &lt;p&gt;&lt;a href="https://github.com/cloudwego/kitex"&gt;Kitex&lt;/a&gt; 发布后，我们接到了大量来自用户的自测数据，感谢社区对我们的关注和支持，也欢迎广大开发者基于本文提供的测试指南，针对自己的实际场景选择合适的工具。更多问题，请在 GitHub 上提 Issue 交流。&lt;/p&gt;
 &lt;h2 id="相关链接"&gt;相关链接&lt;/h2&gt;
